@@ -636,7 +636,7 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
 </div>
 
 <script>
-const STORAGE_KEY='rooftop_freezer_inventory_v2';
+const STORAGE_KEY='rooftop_freezer_inventory_v3';
 const SUPABASE_STORAGE_KEY='rooftop_supabase_config_v1';
 const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F2',name:'冷凍庫No.2',cls:'b2'},{code:'F3',name:'冷凍庫No.3',cls:'b3'},{code:'F4',name:'冷凍庫No.4',cls:'b4'},{code:'F5',name:'アパート冷凍庫',cls:'b5'}];
 const STORE_FREEZERS=[{code:'S1',name:'冷凍庫A',cls:'b1'},{code:'S2',name:'冷凍庫B',cls:'b2'},{code:'S3',name:'冷凍庫C',cls:'b3'},{code:'S4',name:'冷凍庫D',cls:'b4'},{code:'S5',name:'-60度冷凍庫',cls:'b5'}];
@@ -645,9 +645,21 @@ const STORES=['神楽坂','男マエ食道','深夜食道'];
 const ROLES=['管理者','担当者','オーナー'];
 
 const initialState={user:{name:'松浦',role:'管理者'},items:[
-{id:'i1',name:'餃子',category:'冷凍食材',unit:'袋',min:20,max:80,preferredStores:['神楽坂','深夜食道'],usageCount:4,freezerStock:{F1:18,F2:12,F3:0,F4:0},storeMoved:{'神楽坂':24,'男マエ食道':0,'深夜食道':6}},
-{id:'i2',name:'地鶏炭火焼',category:'冷凍食材',unit:'パック',min:10,max:40,preferredStores:['神楽坂','男マエ食道'],usageCount:3,freezerStock:{F1:6,F2:8,F3:4,F4:0},storeMoved:{'神楽坂':5,'男マエ食道':7,'深夜食道':0}},
-{id:'i3',name:'うなぎ真空パック',category:'冷凍食材',unit:'パック',min:5,max:25,preferredStores:['男マエ食道'],usageCount:1,freezerStock:{F1:0,F2:3,F3:2,F4:1},storeMoved:{'神楽坂':0,'男マエ食道':4,'深夜食道':0}}
+{id:'i1', name:'旨辛餃子',   category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:8, F2:18,F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i2', name:'炭火焼餃子', category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:5, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i3', name:'メヒカリ',   category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:3, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i4', name:'牛すじ',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:3, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i5', name:'種鶏',       category:'冷凍食材',unit:'個',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:10,F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i6', name:'せせり',     category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:1, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i7', name:'ほっけ',     category:'冷凍食材',unit:'枚',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:2, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i8', name:'旨辛餡',     category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:4, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i9', name:'牛タン',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:34,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i10',name:'しし肉',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:13,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i11',name:'カレー',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:9, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i12',name:'銀皮',       category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:20,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i13',name:'はまゆう',   category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:11},storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i14',name:'ひつまぶし', category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:9 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i15',name:'鶏油',       category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:5 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}}
 ].map(item => ({
   ...item,
   visibleInFreezers: {
@@ -658,11 +670,7 @@ const initialState={user:{name:'松浦',role:'管理者'},items:[
     F5: Number(item.freezerStock?.F5 || 0) > 0,
     S1: false, S2: false, S3: false, S4: false, S5: false
   }
-})),history:[
-{id:'h1',type:'店舗補充',user:'松浦',itemId:'i1',itemName:'餃子',qty:10,unit:'袋',from:'冷凍庫No.1',to:'神楽坂',time:Date.now()-1000*60*60*2},
-{id:'h2',type:'冷凍庫移動',user:'松浦',itemId:'i2',itemName:'地鶏炭火焼',qty:4,unit:'パック',from:'冷凍庫No.1',to:'冷凍庫No.3',time:Date.now()-1000*60*60*7},
-{id:'h3',type:'入庫',user:'松浦',itemId:'i3',itemName:'うなぎ真空パック',qty:5,unit:'パック',from:'仕入れ',to:'冷凍庫No.2',time:Date.now()-1000*60*60*28}
-]};
+})),history:[]};
 
 let state=loadState(),editingItemId=null,moveMode='toStore',prefillItemId=null,prefillFreezerCode=null,currentFreezerContext=null;
 let supabaseClient=null,currentAuthUser=null,cloudEnabled=false;
