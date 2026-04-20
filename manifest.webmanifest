@@ -1,0 +1,24 @@
+{
+  "name": "屋上冷凍ストッカー在庫管理",
+  "short_name": "屋上在庫管理",
+  "description": "屋上冷凍ストッカー①〜④の在庫を一元管理するアプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#1d4ed8",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

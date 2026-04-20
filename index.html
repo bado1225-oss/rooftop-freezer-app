@@ -1,0 +1,2488 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>冷凍在庫一元管理アプリ</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#ffffff; --line:#e5e7ef; --text:#1f2937; --muted:#6b7280;
+      --primary:#1d4ed8; --primary2:#2563eb; --danger:#dc2626; --warn:#d97706; --ok:#059669;
+      --fz1-bg:#eff6ff; --fz1-accent:#2563eb; --fz1-text:#1d4ed8;
+      --fz2-bg:#ecfdf5; --fz2-accent:#059669; --fz2-text:#047857;
+      --fz3-bg:#fff7ed; --fz3-accent:#ea580c; --fz3-text:#c2410c;
+      --fz4-bg:#f5f3ff; --fz4-accent:#7c3aed; --fz4-text:#6d28d9;
+      --fz5-bg:#fff0f5; --fz5-accent:#db2777; --fz5-text:#be185d;
+      --s1:var(--fz1-bg); --s2:var(--fz4-bg); --s3:var(--fz2-bg); --s4:var(--fz3-bg);
+      --shadow:0 10px 30px rgba(0,0,0,.08); --radius:18px;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;background:var(--bg);color:var(--text)}
+    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px 110px}
+    .header{position:sticky;top:0;z-index:50;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -16px 16px;padding:14px 16px}
+    .header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .title{font-size:24px;font-weight:800;margin:0} .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+    .role-chip{padding:10px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);font-size:12px;font-weight:700}
+    .grid{display:grid;gap:14px} .grid.kpis{grid-template-columns:repeat(4,1fr)}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .hero{padding:18px;background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff}
+    .hero h2{margin:0;font-size:18px} .hero p{margin:6px 0 0;font-size:12px;line-height:1.7;opacity:.9}
+    .kpi{padding:16px}.kpi .label{font-size:12px;color:var(--muted)} .kpi .value{font-size:30px;font-weight:800;margin-top:8px}
+    .kpi.alert .value{color:var(--danger)} .kpi.warn .value{color:var(--warn)} .kpi.ok .value{color:var(--ok)}
+    .tabs{display:none}
+    .tab{display:none}
+    .actions{padding:0 !important}
+    .bottom-nav{display:flex;gap:0;padding:6px 0 max(env(safe-area-inset-bottom),8px);border-top:1px solid var(--line)}
+    .bottom-nav-btn{flex:1;border:none;background:transparent;padding:6px 2px 4px;font-size:11px;font-weight:800;color:#94a3b8;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:color .15s}
+    .bottom-nav-btn.active{color:var(--primary)}
+    .bottom-nav-btn .nav-icon{font-size:22px;line-height:1}
+    .bottom-nav-btn.action-btn{color:#374151}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;padding:14px} .toolbar input,.toolbar select,.toolbar textarea{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:#fff;min-height:44px}
+    .toolbar input{flex:1;min-width:220px} .toolbar select{min-width:180px}
+    .section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 16px 8px;font-size:14px;font-weight:800}
+    .pill{padding:6px 10px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:700}
+    .list{padding:0 14px 14px}
+    .item{border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px;background:#fff}
+    .item:first-child{margin-top:0} .item.low{border-left:6px solid var(--danger);background:#fffafa} .item.high{border-left:6px solid var(--warn);background:#fffdf8}
+    .item.ok{border-left:6px solid var(--ok)}
+    .item-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+    .name{font-size:16px;font-weight:800} .meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+    .freezer-badges,.store-badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .badge{padding:9px 12px;border-radius:999px;font-size:14px;font-weight:800;border:1px solid var(--line)}
+    .b1{background:var(--fz1-bg); border-color:#bfdbfe; color:var(--fz1-text)}
+    .b2{background:var(--fz2-bg); border-color:#a7f3d0; color:var(--fz2-text)}
+    .b3{background:var(--fz3-bg); border-color:#fdba74; color:var(--fz3-text)}
+    .b4{background:var(--fz4-bg); border-color:#ddd6fe; color:var(--fz4-text)}
+    .b5{background:var(--fz5-bg); border-color:#fbcfe8; color:var(--fz5-text)}
+    .store{background:#f9fafb}
+    .qty-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+    .qty-box{border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center;background:#fff}
+    .qty-box.f1{background:var(--fz1-bg); border-color:#bfdbfe}
+    .qty-box.f2{background:var(--fz2-bg); border-color:#a7f3d0}
+    .qty-box.f3{background:var(--fz3-bg); border-color:#fdba74}
+    .qty-box.f4{background:var(--fz4-bg); border-color:#ddd6fe}
+    .qty-box.f5{background:var(--fz5-bg); border-color:#fbcfe8}
+    .qty-label{font-size:13px;color:var(--muted)} .qty-label:first-child{font-size:15px}
+    .qty-box.f1 .qty-label:first-child{color:var(--fz1-text);font-weight:800}
+    .qty-box.f2 .qty-label:first-child{color:var(--fz2-text);font-weight:800}
+    .qty-box.f3 .qty-label:first-child{color:var(--fz3-text);font-weight:800}
+    .qty-box.f4 .qty-label:first-child{color:var(--fz4-text);font-weight:800}
+    .qty-box.f5 .qty-label:first-child{color:var(--fz5-text);font-weight:800}
+    .qty-value{font-size:28px;font-weight:900;margin-top:4px}
+    .qty-box.f1 .qty-value{color:var(--fz1-text)}
+    .qty-box.f2 .qty-value{color:var(--fz2-text)}
+    .qty-box.f3 .qty-value{color:var(--fz3-text)}
+    .qty-box.f4 .qty-value{color:var(--fz4-text)}
+    .qty-box.f5 .qty-value{color:var(--fz5-text)}
+    .status{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800}
+    .status.low{background:#fee2e2;color:#991b1b}.status.high{background:#ffedd5;color:#9a3412}.status.ok{background:#dcfce7;color:#166534}
+    .actions{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(246,247,251,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 16px}
+    .actions-inner{max-width:980px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap}
+    .primary,.secondary,.danger{border:none;border-radius:14px;padding:14px 16px;font-weight:800;cursor:pointer;min-height:48px}
+    .primary{background:var(--primary);color:#fff;flex:1}.secondary{background:#fff;border:1px solid var(--line)} .danger{background:#fff1f2;color:#be123c;border:1px solid #fecdd3}
+    .view{display:none}.view.active{display:block}
+    .modal-wrap{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-end;justify-content:center;z-index:100}
+    .modal-wrap.open{display:flex}.modal{width:100%;max-width:760px;max-height:92vh;overflow:auto;background:#fff;border-radius:22px 22px 0 0;padding:18px}
+    .modal h3{margin:0 0 14px;font-size:18px}.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .field{display:flex;flex-direction:column;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:800;color:#4b5563}
+    .field input,.field select,.field textarea{border:1px solid var(--line);border-radius:12px;padding:12px 13px;min-height:44px;background:#fff}
+    .checks{display:flex;gap:8px;flex-wrap:wrap}.check{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700}
+    .check.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
+.initial-stock-box{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
+    .initial-stock-box.off{opacity:.55;background:#f8fafc}
+    .initial-stock-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
+    .initial-stock-label{font-size:13px;font-weight:800}
+    .initial-stock-input{width:100%}
+    .modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+    .small{font-size:12px;color:var(--muted);line-height:1.7}.history-filter{padding:0 14px 14px}
+    .history-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-top:12px}
+.stock-context{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+    .stock-context-title{font-size:12px;color:var(--muted);font-weight:800;margin-bottom:8px}
+    .stock-action-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+    .stock-action-btn{border:none;border-radius:12px;padding:11px 10px;font-size:13px;font-weight:800;cursor:pointer;min-height:44px}
+    .stock-action-btn.inbound{background:#dbeafe;color:#1d4ed8}
+    .stock-action-btn.refill{background:#dcfce7;color:#166534}
+    .stock-action-btn.move{background:#f3e8ff;color:#6d28d9}
+    .stock-action-btn:active{transform:scale(.98)}
+    .stock-inline-meta{font-size:12px;color:var(--muted);line-height:1.6}
+    .freezer-card-toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+    .freezer-card-note{font-size:12px;color:var(--muted);font-weight:700}
+.freezer-group{border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff;margin-top:12px}
+    .freezer-group.f1{background:var(--fz1-bg);border-color:#bfdbfe}
+    .freezer-group.f2{background:var(--fz2-bg);border-color:#a7f3d0}
+    .freezer-group.f3{background:var(--fz3-bg);border-color:#fdba74}
+    .freezer-group.f4{background:var(--fz4-bg);border-color:#ddd6fe}
+    .freezer-group-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    .freezer-group-title{font-size:22px;font-weight:900}
+    .freezer-group-title.f1{color:var(--fz1-text)}
+    .freezer-group-title.f2{color:var(--fz2-text)}
+    .freezer-group-title.f3{color:var(--fz3-text)}
+    .freezer-group-title.f4{color:var(--fz4-text)}
+    .freezer-group-sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
+    .freezer-summary-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .freezer-summary-btn{border:none;border-radius:12px;padding:11px 12px;font-size:13px;font-weight:800;cursor:pointer;min-height:44px;background:#fff}
+    .freezer-items{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+    .freezer-item-row{background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.95);border-radius:14px;padding:12px}
+    .freezer-item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+    .freezer-item-name{font-size:22px;font-weight:800}
+    .freezer-item-meta{font-size:12px;color:var(--muted);line-height:1.6;margin-top:4px}
+    .freezer-item-qty{font-size:28px;font-weight:900}
+    .freezer-item-qty.f1{color:var(--fz1-text)}
+    .freezer-item-qty.f2{color:var(--fz2-text)}
+    .freezer-item-qty.f3{color:var(--fz3-text)}
+    .freezer-item-qty.f4{color:var(--fz4-text)}
+    .freezer-item-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.item-menu-wrap{position:relative}
+    .item-menu-btn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;font-size:18px;font-weight:900;line-height:1;cursor:pointer;min-width:48px;min-height:44px}
+    .item-menu-panel{position:absolute;right:0;top:52px;z-index:80;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;min-width:180px;display:none}
+    .item-menu-panel.open{display:block}
+    .item-menu-action{width:100%;text-align:left;border:none;background:#fff;border-radius:10px;padding:11px 12px;font-weight:800;cursor:pointer}
+    .mini-note{font-size:11px;color:var(--muted);font-weight:700}
+.row-actions-2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+    .stock-action-btn.edit{background:#e0f2fe;color:#075985}
+    .stock-action-btn.remove{background:#fef2f2;color:#b91c1c}
+    .freezer-add-wrap{margin-top:12px;padding-top:12px;border-top:1px dashed rgba(0,0,0,.08)}
+    .freezer-add-btn{width:100%;border:none;border-radius:14px;padding:13px 14px;font-size:14px;font-weight:800;cursor:pointer;background:#fff}
+    .freezer-add-btn.f1{color:var(--fz1-text);border:1px solid #bfdbfe}
+    .freezer-add-btn.f2{color:var(--fz2-text);border:1px solid #a7f3d0}
+    .freezer-add-btn.f3{color:var(--fz3-text);border:1px solid #fdba74}
+    .freezer-add-btn.f4{color:var(--fz4-text);border:1px solid #ddd6fe}
+.status.out{background:#111827;color:#fff}
+    .freezer-item-row.out-zero{opacity:.96;background:#f9fafb;border:1px dashed #cbd5e1}
+    .freezer-item-row.out-zero .freezer-item-name{color:#475569}
+    .freezer-item-row.out-zero .freezer-item-meta{color:#64748b}
+    .freezer-item-qty.zero{color:#6b7280 !important}
+    .zero-note{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#f3f4f6;color:#374151;font-size:12px;font-weight:800}
+    .history-main{font-weight:800}.history-sub{font-size:12px;color:var(--muted);line-height:1.7;margin-top:4px}
+    .empty{padding:30px 18px;text-align:center;color:var(--muted)} .role-note{font-size:12px;color:var(--muted);padding:0 16px 14px}
+    .sync-box{padding:14px 16px;margin-top:14px}.sync-title{font-size:14px;font-weight:800;color:#1e3a8a}.sync-text{font-size:12px;color:var(--muted);line-height:1.7;margin-top:6px}
+    .sync-status{display:inline-flex;margin-top:10px;padding:7px 11px;border-radius:999px;background:#f3f4f6;font-size:12px;font-weight:700}
+.freezer-legend{display:flex;gap:8px;flex-wrap:wrap;padding:0 14px 14px}
+    .legend-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:999px;border:1px solid var(--line);font-size:12px;font-weight:700;background:#fff}
+    .legend-dot{width:10px;height:10px;border-radius:999px;display:inline-block}
+    .legend-dot.f1{background:var(--fz1-accent)}
+    .legend-dot.f2{background:var(--fz2-accent)}
+    .legend-dot.f3{background:var(--fz3-accent)}
+    .legend-dot.f4{background:var(--fz4-accent)}
+    .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:999px;font-size:13px;font-weight:700;display:none;z-index:120}
+    .toast.show{display:block}
+    @media (max-width:700px){.grid.kpis{grid-template-columns:repeat(2,1fr)}.qty-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.title{font-size:21px}.app{padding:12px 12px 120px}.header{margin:0 -12px 12px;padding:12px}}
+    /* ===== スマホ最適化カード ===== */
+    .item.mc-card{padding:0;overflow:hidden}
+    .mc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px 10px}
+    .mc-name{font-size:22px;font-weight:800;line-height:1.3;flex:1}
+    .mc-middle{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 16px 14px}
+    .mc-total-wrap{display:flex;align-items:baseline;gap:6px}
+    .mc-total-num{font-size:54px;font-weight:900;line-height:1}
+    .mc-total-num.num-ok{color:#1f2937}
+    .mc-total-num.num-low{color:var(--warn)}
+    .mc-total-num.num-zero{color:var(--danger)}
+    .mc-total-unit{font-size:14px;font-weight:700;color:var(--muted)}
+    .mc-acts{display:flex;flex-direction:column;gap:8px;flex-shrink:0}
+    .mc-act-btn{border:none;border-radius:14px;padding:14px 18px;font-size:16px;font-weight:800;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;min-width:106px;text-align:center}
+    .mc-inbound{background:#dcfce7;color:#166534}
+    .mc-replenish{background:#dbeafe;color:#1d4ed8}
+    .mc-act-btn:active{transform:scale(.93)}
+    .mc-act-btn:disabled{opacity:.32;cursor:default;transform:none!important}
+    .mc-fz{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px 12px;border-top:1px solid var(--line)}
+    .mc-fz-chip{padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+    .mc-fz-chip.f1{background:var(--fz1-bg);color:var(--fz1-text)}
+    .mc-fz-chip.f2{background:var(--fz2-bg);color:var(--fz2-text)}
+    .mc-fz-chip.f3{background:var(--fz3-bg);color:var(--fz3-text)}
+    .mc-fz-chip.f4{background:var(--fz4-bg);color:var(--fz4-text)}
+    .mc-fz-chip.fz-zero{opacity:.42}
+    /* ===== クイックシート（ボトムシート） ===== */
+    .qs-wrap{position:fixed;inset:0;background:rgba(15,23,42,.52);z-index:300;display:none;align-items:flex-end;justify-content:center}
+    .qs-wrap.open{display:flex}
+    .qs-panel{width:100%;max-width:760px;background:#fff;border-radius:24px 24px 0 0;padding-bottom:max(env(safe-area-inset-bottom),20px);max-height:92vh;overflow-y:auto}
+    .qs-drag{padding:12px 0 0;display:flex;justify-content:center}
+    .qs-drag-bar{width:44px;height:4px;border-radius:999px;background:#d1d5db}
+    .qs-head{padding:14px 20px 0;text-align:center}
+    .qs-title{font-size:21px;font-weight:900;margin:0}
+    .qs-sub{font-size:13px;color:var(--muted);margin-top:5px}
+    .qs-body{padding:18px 18px 0}
+    .qs-sec{margin-bottom:18px}
+    .qs-sec-label{font-size:11px;font-weight:800;color:#9ca3af;margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase}
+    .qs-chips{display:flex;gap:8px;flex-wrap:wrap}
+    .qs-chip{flex:1;min-width:70px;border:2px solid var(--line);border-radius:14px;padding:12px 8px;font-size:15px;font-weight:800;background:#fff;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .qs-chip.on{background:#eff6ff;border-color:#3b82f6;color:var(--primary)}
+    .qs-chip-sub{font-size:11px;font-weight:700;color:var(--muted);margin-top:3px}
+    .qs-chip.on .qs-chip-sub{color:#6ba3f5}
+    .qs-chip:disabled{opacity:.35;cursor:default}
+    .qs-stepper{display:flex;align-items:center;justify-content:center;gap:20px;padding:8px 0 4px}
+    .qs-step-btn{width:68px;height:68px;border-radius:18px;border:none;font-size:36px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
+    .qs-step-btn.minus{background:#fee2e2;color:#dc2626}
+    .qs-step-btn.plus{background:#dcfce7;color:#16a34a}
+    .qs-step-btn:active{transform:scale(.86)}
+    .qs-num-block{text-align:center;min-width:80px}
+    .qs-qty-num{font-size:60px;font-weight:900;line-height:1;color:#1f2937}
+    .qs-qty-unit{font-size:13px;color:var(--muted);font-weight:700}
+    .qs-presets{display:flex;gap:8px;justify-content:center;margin-top:12px}
+    .qs-preset{border:1px solid var(--line);border-radius:12px;padding:10px 18px;font-size:15px;font-weight:800;background:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .qs-preset:active{background:#f1f5f9}
+    .qs-stock-hint{font-size:12px;color:var(--muted);text-align:center;margin:6px 0}
+    .qs-footer{padding:14px 18px 4px}
+    .qs-exec{width:100%;border:none;border-radius:16px;padding:18px;font-size:18px;font-weight:800;cursor:pointer;background:var(--primary);color:#fff;-webkit-tap-highlight-color:transparent;touch-action:manipulation;line-height:1.3}
+    .qs-exec:disabled{background:#9ca3af;cursor:default}
+    .qs-exec:active{background:#1e40af;transform:scale(.98)}
+    .qs-cancel{width:100%;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;background:transparent;color:#9ca3af;margin-top:8px}
+    /* 冷凍庫別ボタン タッチターゲット改善 */
+    .stock-action-btn{min-height:52px;font-size:14px}
+    .stock-action-btn.use{background:#fef3c7;color:#92400e}
+    .mc-use{background:#fef3c7;color:#92400e}
+    /* 冷凍庫フィルターボタン */
+    .fz-filter-row{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px 14px}
+    .fz-filter-btn{border:2px solid transparent;border-radius:14px;padding:11px 15px;font-size:14px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;background:#f1f5f9;color:#94a3b8;transition:all .15s}
+    .fz-filter-btn.fz-all.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .fz-filter-btn.fz-f1{background:var(--fz1-bg);color:var(--fz1-text);border-color:#bfdbfe}
+    .fz-filter-btn.fz-f2{background:var(--fz2-bg);color:var(--fz2-text);border-color:#a7f3d0}
+    .fz-filter-btn.fz-f3{background:var(--fz3-bg);color:var(--fz3-text);border-color:#fdba74}
+    .fz-filter-btn.fz-f4{background:var(--fz4-bg);color:var(--fz4-text);border-color:#ddd6fe}
+    .fz-filter-btn.fz-f1.active{border-color:var(--fz1-accent);box-shadow:0 0 0 3px rgba(37,99,235,.18)}
+    .fz-filter-btn.fz-f2.active{border-color:var(--fz2-accent);box-shadow:0 0 0 3px rgba(5,150,105,.18)}
+    .fz-filter-btn.fz-f3.active{border-color:var(--fz3-accent);box-shadow:0 0 0 3px rgba(234,88,12,.18)}
+    .fz-filter-btn.fz-f4.active{border-color:var(--fz4-accent);box-shadow:0 0 0 3px rgba(124,58,237,.18)}
+    .fz-filter-btn.fz-f5{background:var(--fz5-bg);color:var(--fz5-text);border-color:#fbcfe8}
+    .fz-filter-btn.fz-f5.active{border-color:var(--fz5-accent);box-shadow:0 0 0 3px rgba(219,39,119,.18)}
+    .fz-filter-btn:not(.active){opacity:.75}
+    .fz-filter-btn.active{opacity:1}
+    .dash-filter-tabs{display:flex;gap:0;padding:10px 14px 0;border-bottom:2px solid var(--line)}
+    .dash-filter-tab{flex:1;border:none;border-radius:10px 10px 0 0;padding:10px 6px;font-size:15px;font-weight:800;cursor:pointer;background:transparent;color:#94a3b8;transition:all .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .dash-filter-tab.active{background:var(--primary);color:#fff}
+    .dash-sub-filter{padding:10px 14px 12px;display:none}
+    .dash-sub-filter.show{display:flex}
+    /* 冷凍庫グループ 区切り強化 */
+    .freezer-group{border:2px solid var(--line)!important;border-radius:20px!important;padding:0!important;margin-top:22px!important;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07)!important}
+    .freezer-group.f1{border-color:#93c5fd!important}
+    .freezer-group.f2{border-color:#6ee7b7!important}
+    .freezer-group.f3{border-color:#fb923c!important}
+    .freezer-group.f4{border-color:#c4b5fd!important}
+    .freezer-group .freezer-group-head{padding:16px 18px 14px}
+    .freezer-group.f1 .freezer-group-head{background:var(--fz1-bg);border-bottom:2px solid #93c5fd}
+    .freezer-group.f2 .freezer-group-head{background:var(--fz2-bg);border-bottom:2px solid #6ee7b7}
+    .freezer-group.f3 .freezer-group-head{background:var(--fz3-bg);border-bottom:2px solid #fb923c}
+    .freezer-group.f4 .freezer-group-head{background:var(--fz4-bg);border-bottom:2px solid #c4b5fd}
+    .freezer-group .freezer-group-title{font-size:26px!important;font-weight:900!important}
+    .freezer-group .freezer-items{padding:10px 12px 0;background:#fff}
+    .freezer-group .freezer-add-wrap{background:#fff;padding:12px 14px 14px}
+    .freezer-group .freezer-item-row{background:#fff}
+    .list>.freezer-group:first-child{margin-top:8px!important}
+    /* 移動先冷凍庫大型ボタン */
+    .qs-fz-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .qs-fz-btn{border:3px solid var(--line);border-radius:18px;padding:18px 10px;font-size:17px;font-weight:800;background:#fff;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:border-color .1s,background .1s}
+    .qs-fz-btn.f1{border-color:#bfdbfe}.qs-fz-btn.f1.on{background:var(--fz1-bg);border-color:var(--fz1-accent);color:var(--fz1-text)}
+    .qs-fz-btn.f2{border-color:#a7f3d0}.qs-fz-btn.f2.on{background:var(--fz2-bg);border-color:var(--fz2-accent);color:var(--fz2-text)}
+    .qs-fz-btn.f3{border-color:#fdba74}.qs-fz-btn.f3.on{background:var(--fz3-bg);border-color:var(--fz3-accent);color:var(--fz3-text)}
+    .qs-fz-btn.f4{border-color:#ddd6fe}.qs-fz-btn.f4.on{background:var(--fz4-bg);border-color:var(--fz4-accent);color:var(--fz4-text)}
+    .qs-fz-btn:disabled{opacity:.35;cursor:default}
+    .qs-fz-num{font-size:13px;color:var(--muted);margin-top:5px;font-weight:700}
+    .qs-fz-btn.on .qs-fz-num{opacity:.8;color:inherit}
+    .qs-from-chip{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:14px;font-size:16px;font-weight:800;margin-bottom:4px}
+    .qs-from-chip.f1{background:var(--fz1-bg);color:var(--fz1-text)}
+    .qs-from-chip.f2{background:var(--fz2-bg);color:var(--fz2-text)}
+    .qs-from-chip.f3{background:var(--fz3-bg);color:var(--fz3-text)}
+    .qs-from-chip.f4{background:var(--fz4-bg);color:var(--fz4-text)}
+    /* ダッシュボード セクションヘッダー */
+    .dash-section-head{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:22px 16px 10px;margin-top:8px;text-align:center}
+    .dash-section-head.roof{border-top:none}
+    .dash-section-head.store{border-top:none;margin-top:0;padding-top:18px}
+    .dash-section-label{font-size:22px;font-weight:900;color:var(--text);letter-spacing:.03em}
+    .dash-section-head .pill{font-size:13px}
+    /* 商品編集モーダル セクションヘッダー */
+    .modal-section-head{padding:9px 14px;border-radius:12px;font-size:13px;font-weight:800;margin-bottom:6px}
+    .modal-section-head.roof{background:var(--fz1-bg);color:var(--fz1-text);border:1px solid #bfdbfe}
+    .modal-section-head.store{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+    /* 商品編集モーダル 冷凍庫設定タブ */
+    .item-modal-tabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin:14px 0 0}
+    .item-modal-tab{flex:1;border:none;background:transparent;padding:12px 8px;font-size:14px;font-weight:800;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-2px;-webkit-tap-highlight-color:transparent}
+    .item-modal-tab.active.roof-tab{color:var(--fz1-text);border-bottom-color:var(--fz1-accent)}
+    .item-modal-tab.active.store-tab{color:#92400e;border-bottom-color:#f59e0b}
+    .item-modal-tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+    .item-modal-pane{padding:14px 0 0}
+    @media (max-width:700px){.mc-total-num{font-size:46px}.mc-act-btn{font-size:15px;padding:13px 14px}}
+    .roof-more-btn{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;background:#fff;color:var(--primary);margin-top:0;-webkit-tap-highlight-color:transparent}
+    .roof-more-btn.expanded{color:var(--muted)}
+    #freezerNavPopup{transition:opacity .18s,transform .18s}
+    #freezerNavPopup.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(8px)}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-row">
+      <div>
+        <h1 class="title" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="cursor:pointer">冷凍在庫一元管理</h1>
+
+      </div>
+      <div class="role-chip" id="userChip">利用者: 管理者</div>
+    </div>
+  </div>
+
+
+  <section class="view active" id="view-dashboard">
+    <div class="card">
+      <div class="toolbar">
+        <select id="searchDashboard" style="flex:1;min-width:180px">
+          <option value="">すべての商品</option>
+        </select>
+
+      </div>
+      <!-- 屋上冷凍庫セクション -->
+      <div class="dash-section-head roof">
+        <span class="dash-section-label">🏠 屋上冷凍庫</span>
+        <span class="pill" id="dashRoofCount">0件</span>
+      </div>
+
+      <div class="list" id="dashRoofList"></div>
+      <div id="dashRoofMoreWrap" style="display:none;padding:0 14px 14px">
+        <button class="secondary" style="width:100%;font-size:15px;font-weight:800" onclick="toggleRoofMore()">▼ もっと見る</button>
+      </div>
+      <!-- 店舗冷凍庫セクション -->
+      <div style="height:5px;background:linear-gradient(90deg,var(--primary),var(--primary2),#a78bfa,transparent);margin:20px 14px 0;border-radius:4px;opacity:.7"></div>
+      <div class="dash-section-head store">
+        <span class="dash-section-label">🏪 店舗冷凍庫</span>
+        <span class="pill" id="dashStoreCount">0件</span>
+      </div>
+
+      <div class="list" id="dashStoreList"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-freezers">
+    <div class="card">
+      <div class="toolbar">
+        <input type="search" id="searchFreezer" placeholder="商品名で検索">
+      </div>
+      <div class="dash-filter-tabs" id="fzMainTabs">
+        <button class="dash-filter-tab active" data-tab="all">すべて</button>
+        <button class="dash-filter-tab" data-tab="detail">冷凍庫別</button>
+      </div>
+      <div class="fz-filter-row dash-sub-filter" id="fzSubFilter">
+        <button class="fz-filter-btn fz-f1 active" data-filter="F1">No.1</button>
+        <button class="fz-filter-btn fz-f2" data-filter="F2">No.2</button>
+        <button class="fz-filter-btn fz-f3" data-filter="F3">No.3</button>
+        <button class="fz-filter-btn fz-f4" data-filter="F4">No.4</button>
+        <button class="fz-filter-btn fz-f5" data-filter="F5">アパート</button>
+      </div>
+      <div class="list" id="freezerList"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-store-freezers">
+    <div class="card">
+      <div class="toolbar">
+        <input type="search" id="searchStoreFreezer" placeholder="商品名で検索">
+      </div>
+      <div class="dash-filter-tabs" id="sfMainTabs">
+        <button class="dash-filter-tab active" data-tab="all">すべて</button>
+        <button class="dash-filter-tab" data-tab="detail">冷凍庫別</button>
+      </div>
+      <div class="fz-filter-row dash-sub-filter" id="sfSubFilter">
+        <button class="fz-filter-btn fz-f1 active" data-filter="S1">A</button>
+        <button class="fz-filter-btn fz-f2" data-filter="S2">B</button>
+        <button class="fz-filter-btn fz-f3" data-filter="S3">C</button>
+        <button class="fz-filter-btn fz-f4" data-filter="S4">D</button>
+        <button class="fz-filter-btn fz-f5" data-filter="S5">-60度</button>
+      </div>
+      <div class="list" id="storeFreezerList"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-history">
+    <div class="card">
+      <div class="history-filter">
+        <div class="toolbar" style="padding:14px 0 0">
+          <input type="search" id="historySearch" placeholder="商品名・担当者で検索">
+          <select id="historyType">
+            <option value="all">すべての操作</option>
+            <option value="入庫">入庫</option>
+            <option value="店舗補充">店舗補充</option>
+            <option value="冷凍庫移動">冷凍庫移動</option>
+            <option value="商品追加">商品追加</option>
+            <option value="冷凍庫へ商品追加">冷凍庫へ商品追加</option>
+            <option value="冷凍庫から商品削除">冷凍庫から商品削除</option>
+            <option value="商品編集">商品編集</option>
+          </select>
+        </div>
+      </div>
+      <div class="section-title"><span>履歴一覧</span><span class="pill" id="historyCount">0件</span></div>
+      <div class="list" id="historyList"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-alerts">
+    <div class="card">
+      <div class="section-title"><span>不足 / 過剰在庫</span><span class="pill" id="alertCount">0件</span></div>
+      <div class="list" id="alertList"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <div class="card">
+      <div class="section-title"><span>基本設定</span><span class="pill">ローカル保存 + クラウド同期</span></div>
+      <div class="list">
+
+        <div class="item ok" style="margin-top:0">
+          <div class="name">Supabase同期設定</div>
+          <div class="meta">クラウド同期の接続状態確認、接続設定、手動同期を行います。</div>
+          <div class="sync-status" id="syncStatus">未接続</div>
+          <div class="modal-actions">
+            <button class="secondary" onclick="openCloudModal()">接続設定</button>
+            <button class="secondary" onclick="reloadAllFromSupabase()">今すぐ同期</button>
+          </div>
+        </div>
+
+        <!-- スキーマ移行通知：visible_in_freezers カラムがない場合に自動表示 -->
+        <div class="item high" id="schemaMigrationBox" style="display:none;margin-top:12px">
+          <div class="name" style="color:var(--warn)">⚠️ Supabase スキーマ更新が必要です</div>
+          <div class="meta" style="margin-top:6px">
+            別端末・別ブラウザでも「冷凍庫から外した」状態を正しく同期するために、<br>
+            <strong>rooftop_items</strong> テーブルへのカラム追加が必要です。<br>
+            Supabase ダッシュボード → SQL Editor で以下のSQLを実行してください。
+          </div>
+          <textarea id="migrationSql" readonly style="width:100%;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid #fcd34d;background:#fffbeb;font-family:monospace;font-size:12px;line-height:1.6;resize:none;min-height:120px;color:#92400e">ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS visible_in_freezers JSONB DEFAULT '{"F1":false,"F2":false,"F3":false,"F4":false}';
+ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS min_store INTEGER DEFAULT 0;
+ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;</textarea>
+          <div class="modal-actions" style="margin-top:10px">
+            <button class="secondary" onclick="copyMigrationSql()">📋 SQLをコピー</button>
+            <button class="secondary" onclick="checkSchemaVersion().then(()=>toast('✓ チェック完了'))">再チェック</button>
+          </div>
+        </div>
+
+<div class="item ok" style="margin-top:0">
+          <div class="name">利用者情報</div>
+          <div class="meta">履歴に記録する名前と権限を設定します。</div>
+          <div class="form-grid" style="margin-top:12px">
+            <div class="field"><label>利用者名</label><input id="userNameInput" placeholder="例: 松浦"></div>
+            <div class="field"><label>権限</label><select id="userRoleInput"><option value="管理者">管理者</option><option value="担当者">担当者</option><option value="オーナー">オーナー</option></select></div>
+          </div>
+          <div class="modal-actions"><button class="primary" onclick="saveUserSettings()">利用者設定を保存</button></div>
+        </div>
+        <div class="item high">
+          <div class="name">データ操作</div>
+          <div class="meta">テスト用に初期データへ戻したい場合のみ実行してください。クラウド接続中はローカルもクラウドも上書きされます。</div>
+          <div class="modal-actions"><button class="danger" onclick="resetAll()">初期データに戻す</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- 冷凍庫選択ポップアップ -->
+<div id="freezerNavPopup" style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:70;width:calc(100% - 32px);max-width:940px">
+  <div style="background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 -4px 20px rgba(0,0,0,.12);padding:14px;display:flex;gap:10px">
+    <button class="primary" style="flex:1;font-size:16px;font-weight:800;border-radius:14px;padding:16px 10px" onclick="goToFreezerTab('freezers')">🏠 屋上冷凍庫</button>
+    <button class="primary" style="flex:1;font-size:16px;font-weight:800;border-radius:14px;padding:16px 10px;background:var(--warn);border:none" onclick="goToFreezerTab('store-freezers')">🏪 店舗冷凍庫</button>
+  </div>
+</div>
+<div class="actions">
+  <div class="bottom-nav">
+    <button class="bottom-nav-btn active" data-tab="dashboard"><span class="nav-icon">🏠</span>ホーム</button>
+    <button class="bottom-nav-btn action-btn" id="freezerNavBtn" onclick="toggleFreezerNavPopup()"><span class="nav-icon">❄️</span>冷凍庫別</button>
+    <button class="bottom-nav-btn action-btn" onclick="openItemModal()"><span class="nav-icon">➕</span>新規追加</button>
+    <button class="bottom-nav-btn" data-tab="history"><span class="nav-icon">📋</span>履歴</button>
+    <button class="bottom-nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定</button>
+  </div>
+</div>
+
+<div class="modal-wrap" id="itemModalWrap"><div class="modal">
+  <h3 id="itemModalTitle">商品を編集</h3>
+  <!-- 開いたコンテキストをバッジで表示 -->
+  <div id="itemModalContextBadge" style="margin-bottom:12px"></div>
+  <div class="form-grid">
+    <div class="field full"><label>商品名</label><input id="itemName"></div>
+    <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
+    <div class="field"><label>単位</label><select id="itemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
+  </div>
+
+  <!-- 屋上冷凍庫セクション（屋上コンテキスト or 全体表示時） -->
+  <div id="itemSectionRoof">
+    <div class="modal-section-head roof" style="margin:12px 0 8px">🏠 屋上冷凍庫（No.1〜No.4）</div>
+    <div class="form-grid">
+      <div class="field"><label>最低在庫数</label><input id="itemMin" type="number" min="0" max="9999"></div>
+      <div class="field"><label>最大在庫数</label><input id="itemMax" type="number" min="0" max="9999"></div>
+      <div class="field full">
+        <label>登録する冷凍庫</label>
+        <div class="checks" id="freezerChecksRoofInner"></div>
+      </div>
+      <div class="field full">
+        <label>初期在庫設定</label>
+        <div class="form-grid" id="initialStockGridRoof"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 店舗冷凍庫セクション（店舗コンテキスト or 全体表示時） -->
+  <div id="itemSectionStore">
+    <div class="modal-section-head store" style="margin:12px 0 8px">🏪 店舗冷凍庫（A〜D）</div>
+    <div class="form-grid">
+      <div class="field"><label>最低在庫数</label><input id="itemMinStore" type="number" min="0" max="9999"></div>
+      <div class="field"><label>最大在庫数</label><input id="itemMaxStore" type="number" min="0" max="9999"></div>
+      <div class="field full"><label>よく補充する店舗</label><div class="checks" id="storeChecks"></div></div>
+      <div class="field full">
+        <label>登録する冷凍庫</label>
+        <div class="checks" id="freezerChecksStoreInner"></div>
+      </div>
+      <div class="field full">
+        <label>初期在庫設定</label>
+        <div class="form-grid" id="initialStockGridStore"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="field full small" style="padding:4px 0 8px">選択した冷凍庫へ初期在庫を設定できます。0の場合でも表示対象として登録されます。</div>
+  <!-- JS読み取り互換用（非表示） -->
+  <div id="freezerChecks" style="display:none"></div>
+  <div id="initialStockGrid" style="display:none"></div>
+
+  <div class="modal-actions"><button class="secondary" onclick="closeModal('itemModalWrap')">閉じる</button><button class="primary" onclick="saveItem()">保存する</button></div>
+</div></div>
+
+<div class="modal-wrap" id="moveModalWrap"><div class="modal">
+  <h3 id="moveModalTitle">在庫操作</h3><div class="small" id="moveContextText" style="margin-bottom:12px">冷凍庫基準で対象を引き継ぎます。</div>
+  <div class="form-grid">
+    <div class="field full"><label>商品</label><select id="moveItem"></select></div>
+    <div class="field"><label>数量</label><input id="moveQty" type="number" min="1" max="9999" value="1"></div>
+    <div class="field"><label>担当者</label><input id="moveUser"></div>
+    <div class="field" id="fromField"><label>移動元</label><select id="moveFrom"></select></div>
+    <div class="field" id="toField"><label>移動先</label><select id="moveTo"></select></div>
+    <div class="field full"><label>メモ（任意）</label><textarea id="moveMemo" rows="3" placeholder="任意メモ"></textarea></div><div class="field full small" id="moveHelp"></div>
+  </div>
+  <div class="modal-actions"><button class="secondary" onclick="closeModal('moveModalWrap')">閉じる</button><button class="primary" onclick="submitMove()">実行する</button></div>
+</div></div>
+
+<div class="modal-wrap" id="freezerItemModalWrap"><div class="modal">
+  <h3 id="freezerItemModalTitle">この冷凍庫に商品追加</h3>
+  <div class="small" id="freezerItemContext" style="margin-bottom:12px"></div>
+  <div class="form-grid">
+    <div class="field full">
+      <label>追加方法</label>
+      <select id="freezerItemMode">
+        <option value="existing">既存商品を追加</option>
+        <option value="new">新規商品を作成して追加</option>
+      </select>
+    </div>
+
+    <div id="existingItemSection" class="field full">
+      <label>既存商品</label>
+      <select id="existingItemSelect"></select>
+    </div>
+
+    <div id="newItemSection" style="display:none;grid-column:1/-1">
+      <div class="form-grid">
+        <div class="field full"><label>商品名</label><input id="newFreezerItemName"></div>
+        <div class="field"><label>カテゴリ</label><select id="newFreezerItemCategory"><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
+        <div class="field"><label>単位</label><select id="newFreezerItemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
+        <div class="field"><label>最低在庫数</label><input id="newFreezerItemMin" type="number" min="0" max="9999"></div>
+        <div class="field"><label>最大在庫数</label><input id="newFreezerItemMax" type="number" min="0" max="9999"></div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>対象冷凍庫</label>
+      <select id="freezerItemTarget"></select>
+    </div>
+    <div class="field">
+      <label>初期数量</label>
+      <input id="freezerItemInitialQty" type="number" min="0" max="9999" value="0">
+    </div>
+    <div class="field full">
+      <label>数量0でも表示対象にする（在庫切れ表示を維持）</label>
+      <select id="freezerItemVisibleFlag">
+        <option value="true">表示する</option>
+        <option value="false">表示しない</option>
+      </select>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('freezerItemModalWrap')">閉じる</button>
+    <button class="primary" onclick="submitFreezerItemModal()">追加する</button>
+  </div>
+</div></div>
+
+<div class="modal-wrap" id="cloudModalWrap"><div class="modal">
+  <h3>Supabase接続設定</h3>
+  <div class="form-grid">
+    <div class="field full"><label>Supabase URL</label><input id="cloudUrl" placeholder="https://xxxxx.supabase.co"></div>
+    <div class="field full"><label>Supabase Anon Key</label><textarea id="cloudAnonKey" rows="4" placeholder="eyJhbGciOi..."></textarea></div>
+    <div class="field"><label>ログインメール</label><input id="cloudEmail" type="email" placeholder="example@example.com"></div>
+    <div class="field"><label>パスワード</label><input id="cloudPassword" type="password" placeholder="password"></div>
+    <div class="field full small">
+      必要テーブル: profiles / rooftop_items / rooftop_freezer_stock / rooftop_history。<br>
+      rooftop_items は id, name, category, unit, min_stock, max_stock, preferred_stores(jsonb), usage_count, is_active。<br>
+      rooftop_freezer_stock は item_id, freezer_code, quantity。<br>
+      rooftop_history は action_type, acted_by_name, item_id, item_name_snapshot, quantity, unit, from_scope, to_scope, created_at。
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('cloudModalWrap')">閉じる</button>
+    <button class="primary" onclick="connectSupabase()">接続する</button>
+  </div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<!-- クイックアクションシート（入庫・補充用ボトムシート） -->
+<div class="qs-wrap" id="qsWrap" onclick="if(event.target===this)closeQs()">
+  <div class="qs-panel"><div id="qsContent"></div></div>
+</div>
+
+<script>
+const STORAGE_KEY='rooftop_freezer_inventory_v2';
+const SUPABASE_STORAGE_KEY='rooftop_supabase_config_v1';
+const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F2',name:'冷凍庫No.2',cls:'b2'},{code:'F3',name:'冷凍庫No.3',cls:'b3'},{code:'F4',name:'冷凍庫No.4',cls:'b4'},{code:'F5',name:'アパート冷凍庫',cls:'b5'}];
+const STORE_FREEZERS=[{code:'S1',name:'冷凍庫A',cls:'b1'},{code:'S2',name:'冷凍庫B',cls:'b2'},{code:'S3',name:'冷凍庫C',cls:'b3'},{code:'S4',name:'冷凍庫D',cls:'b4'},{code:'S5',name:'-60度冷凍庫',cls:'b5'}];
+const FREEZERS=[...ROOF_FREEZERS,...STORE_FREEZERS];
+const STORES=['神楽坂','男マエ食道','深夜食道'];
+const ROLES=['管理者','担当者','オーナー'];
+
+const initialState={user:{name:'松浦',role:'管理者'},items:[
+{id:'i1',name:'餃子',category:'冷凍食材',unit:'袋',min:20,max:80,preferredStores:['神楽坂','深夜食道'],usageCount:4,freezerStock:{F1:18,F2:12,F3:0,F4:0},storeMoved:{'神楽坂':24,'男マエ食道':0,'深夜食道':6}},
+{id:'i2',name:'地鶏炭火焼',category:'冷凍食材',unit:'パック',min:10,max:40,preferredStores:['神楽坂','男マエ食道'],usageCount:3,freezerStock:{F1:6,F2:8,F3:4,F4:0},storeMoved:{'神楽坂':5,'男マエ食道':7,'深夜食道':0}},
+{id:'i3',name:'うなぎ真空パック',category:'冷凍食材',unit:'パック',min:5,max:25,preferredStores:['男マエ食道'],usageCount:1,freezerStock:{F1:0,F2:3,F3:2,F4:1},storeMoved:{'神楽坂':0,'男マエ食道':4,'深夜食道':0}}
+].map(item => ({
+  ...item,
+  visibleInFreezers: {
+    F1: Number(item.freezerStock?.F1 || 0) > 0,
+    F2: Number(item.freezerStock?.F2 || 0) > 0,
+    F3: Number(item.freezerStock?.F3 || 0) > 0,
+    F4: Number(item.freezerStock?.F4 || 0) > 0,
+    F5: Number(item.freezerStock?.F5 || 0) > 0,
+    S1: false, S2: false, S3: false, S4: false, S5: false
+  }
+})),history:[
+{id:'h1',type:'店舗補充',user:'松浦',itemId:'i1',itemName:'餃子',qty:10,unit:'袋',from:'冷凍庫No.1',to:'神楽坂',time:Date.now()-1000*60*60*2},
+{id:'h2',type:'冷凍庫移動',user:'松浦',itemId:'i2',itemName:'地鶏炭火焼',qty:4,unit:'パック',from:'冷凍庫No.1',to:'冷凍庫No.3',time:Date.now()-1000*60*60*7},
+{id:'h3',type:'入庫',user:'松浦',itemId:'i3',itemName:'うなぎ真空パック',qty:5,unit:'パック',from:'仕入れ',to:'冷凍庫No.2',time:Date.now()-1000*60*60*28}
+]};
+
+let state=loadState(),editingItemId=null,moveMode='toStore',prefillItemId=null,prefillFreezerCode=null,currentFreezerContext=null;
+let supabaseClient=null,currentAuthUser=null,cloudEnabled=false;
+
+function loadState(){
+  try{
+    const raw=localStorage.getItem(STORAGE_KEY);
+    if(raw) return normalizeState(JSON.parse(raw));
+  }catch(e){}
+  return normalizeState(JSON.parse(JSON.stringify(initialState)));
+}
+function normalizeState(input){
+  const s = input || {};
+  s.user = s.user || {name:'松浦',role:'管理者'};
+  s.items = (s.items || []).map(item => {
+    const freezerStock = item.freezerStock
+      ? {...item.freezerStock}
+      : Object.fromEntries(FREEZERS.map(f=>[f.code,0]));
+    const hasVisibilityObject = !!item.visibleInFreezers;
+    const visibleInFreezers = hasVisibilityObject ? {...item.visibleInFreezers} : {};
+    FREEZERS.forEach(f=>{
+      if(typeof freezerStock[f.code] !== 'number') freezerStock[f.code] = Number(freezerStock[f.code] || 0);
+      if(typeof visibleInFreezers[f.code] !== 'boolean'){
+        visibleInFreezers[f.code] = hasVisibilityObject ? false : true;
+      }
+      // visible=false なのに在庫が残っている場合は幽霊在庫としてクリア
+      if(visibleInFreezers[f.code] === false && freezerStock[f.code] > 0){
+        freezerStock[f.code] = 0;
+      }
+    });
+    return {
+      ...item,
+      preferredStores: item.preferredStores || [],
+      usageCount: Number(item.usageCount || 0),
+      storeMoved: item.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
+      // グループ別在庫上下限（未設定の場合は共通 min/max を引き継ぐ）
+      minRoof:   item.minRoof   != null ? Number(item.minRoof)   : Number(item.min   || 0),
+      maxRoof:   item.maxRoof   != null ? Number(item.maxRoof)   : Number(item.max   || 0),
+      minStore:  item.minStore  != null ? Number(item.minStore)  : Number(item.min   || 0),
+      maxStore:  item.maxStore  != null ? Number(item.maxStore)  : Number(item.max   || 0),
+      freezerStock,
+      visibleInFreezers
+    };
+  });
+  s.history = s.history || [];
+  s.items = deduplicateItems(s.items);  // ロード時も重複を即統合
+  return s;
+}
+// ====== 同名商品の重複エントリを統合する ======
+// 根本対策：buildUnifiedItemsはあくまで表示用の統合であり、
+// state.items自体に複数の同名エントリが存在するとID参照操作がズレる。
+// saveState / loadState で常に1商品名1エントリに統合することで解決する。
+function deduplicateItems(items){
+  const seen = new Map();
+  const toRemove = new Set();
+  (items || []).forEach(item => {
+    const key = String(item.name || '').trim().toLowerCase();
+    if(!key) return;
+    if(!seen.has(key)){
+      seen.set(key, item);
+    } else {
+      // 後続の同名エントリを最初のエントリに統合
+      const primary = seen.get(key);
+      FREEZERS.forEach(f => {
+        primary.freezerStock[f.code] = Number(primary.freezerStock?.[f.code] || 0) + Number(item.freezerStock?.[f.code] || 0);
+        if(getFreezerVisibility(item, f.code)) setFreezerVisibility(primary, f.code, true);
+      });
+      primary.usageCount  = Number(primary.usageCount  || 0) + Number(item.usageCount  || 0);
+      primary.min         = Math.max(Number(primary.min || 0), Number(item.min || 0));
+      primary.max         = Math.max(Number(primary.max || 0), Number(item.max || 0));
+      // preferredStores を和集合でマージ
+      primary.preferredStores = [...new Set([...(primary.preferredStores||[]), ...(item.preferredStores||[])])];
+      // storeMoved をマージ
+      Object.keys(item.storeMoved || {}).forEach(store => {
+        primary.storeMoved = primary.storeMoved || {};
+        primary.storeMoved[store] = Number(primary.storeMoved[store] || 0) + Number(item.storeMoved[store] || 0);
+      });
+      toRemove.add(item.id);
+    }
+  });
+  return items.filter(i => !toRemove.has(i.id));
+}
+
+function saveState(){
+  state.items = deduplicateItems(state.items);
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
+function getFreezerVisibility(item, freezerCode){
+  if(!item.visibleInFreezers) return true;
+  if(typeof item.visibleInFreezers[freezerCode] === 'boolean') return item.visibleInFreezers[freezerCode];
+  return false;
+}
+function setFreezerVisibility(item, freezerCode, visible){
+  if(!item.visibleInFreezers) item.visibleInFreezers = Object.fromEntries(FREEZERS.map(f=>[f.code,false]));
+  item.visibleInFreezers[freezerCode] = !!visible;
+}
+function inferVisibleInFreezers(itemId, stockMap, previousVisibility){
+  // FREEZERS全コード（F1-F4, S1-S4）を対象に復元
+  if(previousVisibility && typeof previousVisibility === 'object'){
+    const result = {};
+    FREEZERS.forEach(f => {
+      result[f.code] = typeof previousVisibility[f.code] === 'boolean' ? previousVisibility[f.code] : false;
+    });
+    return result;
+  }
+
+  const stock = stockMap[itemId] || {};
+  const hasAnyStock = FREEZERS.some(f => Number(stock[f.code] || 0) > 0);
+
+  if(hasAnyStock){
+    const result = {};
+    FREEZERS.forEach(f => { result[f.code] = Number(stock[f.code] || 0) > 0; });
+    return result;
+  }
+
+  // visible情報なし・在庫なし → 全false（hidden扱い）
+  const result = {};
+  FREEZERS.forEach(f => { result[f.code] = false; });
+  return result;
+}
+
+function findSameNamedItemInFreezer(name, freezerCode, excludeItemId=null){
+  const normalized = String(name || '').trim().toLowerCase();
+  if(!normalized) return null;
+  return state.items.find(item => {
+    if(excludeItemId && item.id === excludeItemId) return false;
+    const sameName = String(item.name || '').trim().toLowerCase() === normalized;
+    const visible = getFreezerVisibility(item, freezerCode) === true;
+    return sameName && visible;
+  }) || null;
+}
+
+function buildUnifiedItems(items){
+  const map = new Map();
+  (items || []).forEach(item => {
+    const key = String(item.name || '').trim().toLowerCase();
+    if(!key) return;
+
+    if(!map.has(key)){
+      const cloned = JSON.parse(JSON.stringify(item));
+      // F1-F4 と S1-S4 の全コードで初期化
+      if(!cloned.freezerStock){
+        cloned.freezerStock = Object.fromEntries(FREEZERS.map(f=>[f.code,0]));
+      }
+      if(!cloned.visibleInFreezers){
+        cloned.visibleInFreezers = Object.fromEntries(FREEZERS.map(f=>[f.code,false]));
+      }
+      // 既存データに S1-S4 が欠けている場合も補完
+      FREEZERS.forEach(f=>{
+        if(typeof cloned.freezerStock[f.code] !== 'number') cloned.freezerStock[f.code]=0;
+        if(typeof cloned.visibleInFreezers[f.code] !== 'boolean') cloned.visibleInFreezers[f.code]=false;
+      });
+      map.set(key, cloned);
+      return;
+    }
+
+    const merged = map.get(key);
+    FREEZERS.forEach(f => {
+      merged.freezerStock[f.code] = Number(merged.freezerStock?.[f.code] || 0) + Number(item.freezerStock?.[f.code] || 0);
+      setFreezerVisibility(merged, f.code, getFreezerVisibility(merged, f.code) || getFreezerVisibility(item, f.code));
+    });
+    merged.usageCount = Number(merged.usageCount || 0) + Number(item.usageCount || 0);
+    merged.min = Math.max(Number(merged.min || 0), Number(item.min || 0));
+    merged.max = Math.max(Number(merged.max || 0), Number(item.max || 0));
+    map.set(key, merged);
+  });
+  return [...map.values()];
+}
+
+function getUnifiedVisibleItems(searchText=''){
+  const q = String(searchText || '').trim().toLowerCase();
+  return buildUnifiedItems(state.items).filter(item => !q || String(item.name || '').toLowerCase().includes(q));
+}
+
+function getUnifiedRowsForFreezer(freezerCode, searchText=''){
+  return getUnifiedVisibleItems(searchText)
+    .map(item => ({
+      item,
+      qty: Number(item.freezerStock?.[freezerCode] || 0),
+      visible: getFreezerVisibility(item, freezerCode) === true
+    }))
+    .filter(row => row.visible === true)
+    .sort((a,b) => b.qty - a.qty || a.item.name.localeCompare(b.item.name,'ja'));
+}
+function totalStock(item){return Object.values(item.freezerStock||{}).reduce((a,b)=>a+(Number(b)||0),0)}
+function statusOf(item){
+  // visible=true の冷凍庫のみで判定（幽霊在庫を除外）
+  const total=FREEZERS.filter(f=>getFreezerVisibility(item,f.code))
+    .reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
+  if(total<Number(item.min||0)) return 'low';
+  if(total>Number(item.max||0)) return 'high';
+  return 'ok';
+}
+function freezerName(code){
+  const n=fzNum(code);
+  if(code.startsWith('S')) return '店舗冷凍庫'+n;
+  if(code.startsWith('F')) return '屋上冷凍庫'+n;
+  return (FREEZERS.find(f=>f.code===code)||{}).name||code;
+}
+function freezerCodeFromName(name){const f=FREEZERS.find(x=>x.name===name||x.code===name); return f?f.code:name}
+function formatDate(ts){return new Date(ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+function todayCount(){const today=new Date().toDateString(); return state.history.filter(h=>new Date(h.time).toDateString()===today).length}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function saveCloudConfig(cfg){localStorage.setItem(SUPABASE_STORAGE_KEY, JSON.stringify(cfg))}
+function cloudConfig(){try{return JSON.parse(localStorage.getItem(SUPABASE_STORAGE_KEY)||'{}')}catch(e){return {}}}
+function updateSyncStatus(text, connected=false){
+  const el=document.getElementById('syncStatus'); if(!el)return;
+  el.textContent=text; el.style.background=connected?'#dcfce7':'#f3f4f6'; el.style.color=connected?'#166534':'#374151';
+}
+function openModal(id){document.getElementById(id).classList.add('open')}
+function closeModal(id){document.getElementById(id).classList.remove('open')}
+function openCloudModal(){
+  const cfg=cloudConfig();
+  document.getElementById('cloudUrl').value=cfg.url||'';
+  document.getElementById('cloudAnonKey').value=cfg.anonKey||'';
+  document.getElementById('cloudEmail').value=cfg.email||'';
+  document.getElementById('cloudPassword').value=cfg.password||'';
+  openModal('cloudModalWrap');
+}
+function isCloudReady(){return cloudEnabled && !!supabaseClient && !!currentAuthUser}
+
+function rerenderAllViews(){renderUser();renderKpis();renderDashboard();renderFreezers();renderStoreFreezer();renderAlerts();renderHistory();fillItemSelects()}
+function render(){saveState();rerenderAllViews()}
+function renderUser(){
+  document.getElementById('userChip').textContent=`利用者: ${state.user.name} / ${state.user.role}`;
+  document.getElementById('userNameInput').value=state.user.name; document.getElementById('userRoleInput').value=state.user.role;
+}
+function renderKpis(){
+  // KPIカードは非表示のため要素が存在しない場合は何もしない
+  const g=id=>{const el=document.getElementById(id);return el||{set textContent(_){}};};
+  const managed=buildUnifiedItems(state.items).filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true));
+  g('kpiItems').textContent=managed.length;
+  g('kpiLow').textContent=managed.filter(i=>statusOf(i)==='low').length;
+  g('kpiHigh').textContent=managed.filter(i=>statusOf(i)==='high').length;
+  g('kpiToday').textContent=todayCount();
+}
+// fzGroup を渡すとグループ別ステータスでソート（ホーム画面用）
+// 在庫切れ=0 > 不足=1 > 過剰=2 > 適正=3
+function sortItems(items,mode,fzGroup=null){
+  const arr=[...items];
+  if(mode==='name'){
+    arr.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  }else if(mode==='alert'){
+    const rank={out:0,low:1,high:2,ok:3};
+    const getStatus=fzGroup
+      ? item=>{
+          const t=groupStock(item,fzGroup);
+          if(t===0) return 'out';
+          return groupStatusOf(item,fzGroup);
+        }
+      : item=>{
+          const t=totalStock(item);
+          if(t===0) return 'out';
+          return statusOf(item);
+        };
+    arr.sort((a,b)=>(rank[getStatus(a)]??3)-(rank[getStatus(b)]??3) || a.name.localeCompare(b.name,'ja'));
+  }else{
+    arr.sort((a,b)=>(b.usageCount||0)-(a.usageCount||0) || a.name.localeCompare(b.name,'ja'));
+  }
+  return arr;
+}
+// fzGroup: ROOF_FREEZERS / STORE_FREEZERS / null(全体)
+function itemCard(item, fzGroup=null){
+  const useFz = fzGroup || FREEZERS;
+  // チップ表示と一致させるため、visible=trueのfreezerのみを対象に合計を計算
+  const activeF = useFz.filter(f=>getFreezerVisibility(item,f.code));
+  const total = activeF.reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
+  const status = groupStatusOf(item, useFz);
+  const numClass=total===0?'num-zero':status==='low'?'num-low':'num-ok';
+  const statusHtml=total===0
+    ?`<span class="status out">在庫切れ</span>`
+    :status==='low'
+    ?`<span class="status low">不足アラート</span>`
+    :status==='high'
+    ?`<span class="status high">過剰警告</span>`
+    :`<span class="status ok">適正在庫</span>`;
+  const fzChips=activeF.map(f=>{
+    const q=Number(item.freezerStock?.[f.code]||0);
+    return `<span class="mc-fz-chip ${fzCls(f.code)}${q===0?' fz-zero':''}">冷凍庫${fzNum(f.code)}：${q}${item.unit}</span>`;
+  }).join('');
+  // 店舗冷凍庫グループ（S-code）かどうかで第2ボタンを切り替え
+  const isStoreGroup=fzGroup&&fzGroup.length>0&&fzGroup[0].code.startsWith('S');
+  const canAction=total>0;
+  const actionBtn2=isStoreGroup
+    ?`<button class="mc-act-btn mc-use" ${canAction?`onclick="openQuickUse('${item.id}')"`:'disabled'}>→ 使用</button>`
+    :`<button class="mc-act-btn mc-replenish" ${canAction?`onclick="openQuickReplenish('${item.id}')"`:'disabled'}>→ 補充</button>`;
+  return `
+<div class="item mc-card ${status}">
+  <div class="mc-top">
+    <div class="mc-name">${escapeHtml(item.name)}</div>
+    ${statusHtml}
+  </div>
+  <div class="mc-middle">
+    <div class="mc-total-wrap">
+      <span class="mc-total-num ${numClass}">${total}</span>
+      <span class="mc-total-unit">${escapeHtml(item.unit)}</span>
+    </div>
+    <div class="mc-acts">
+      <button class="mc-act-btn mc-inbound" onclick="openQuickInbound('${item.id}')">＋ 入庫</button>
+      ${actionBtn2}
+    </div>
+  </div>
+  ${fzChips?`<div class="mc-fz">${fzChips}</div>`:''}
+</div>`}
+// 屋上冷凍庫の「もっと見る」展開状態
+let roofMoreExpanded = false;
+const ROOF_INITIAL_COUNT = 3; // 最初に表示する件数
+
+function toggleRoofMore(){
+  roofMoreExpanded = !roofMoreExpanded;
+  renderDashboard();
+}
+
+// 商品名プルダウンを登録済み商品で更新する
+function updateSearchDropdown(){
+  const sel = document.getElementById('searchDashboard');
+  if(!sel) return;
+  const current = sel.value;
+  const names = [...new Set(
+    buildUnifiedItems(state.items)
+      .filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true))
+      .map(i=>i.name)
+  )].sort((a,b)=>a.localeCompare(b,'ja'));
+  sel.innerHTML = '<option value="">すべての商品</option>' +
+    names.map(n=>`<option value="${escapeHtml(n)}" ${n===current?'selected':''}>${escapeHtml(n)}</option>`).join('');
+}
+
+function renderDashboard(){
+  updateSearchDropdown();
+  const selectedName=(document.getElementById('searchDashboard')?.value||'').trim().toLowerCase();
+  const mode='alert';
+  // 選択された商品名でフィルタ
+  const unified=getUnifiedVisibleItems('').filter(i=>
+    !selectedName || i.name.toLowerCase()===selectedName
+  );
+
+  // ── 屋上冷凍庫（F1-F4）──
+  const roofFilterCode='all';
+  let roofItems=unified.filter(i=>ROOF_FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true));
+  if(roofFilterCode!=='all') roofItems=roofItems.filter(i=>getFreezerVisibility(i,roofFilterCode)===true);
+  roofItems=sortItems(roofItems,mode,ROOF_FREEZERS);
+  document.getElementById('dashRoofCount').textContent=`${roofItems.length}件`;
+
+  // 上位3件のみ表示し、残りは「もっと見る」で開閉
+  const showAll = roofMoreExpanded || selectedName || roofItems.length<=ROOF_INITIAL_COUNT;
+  const displayItems = showAll ? roofItems : roofItems.slice(0, ROOF_INITIAL_COUNT);
+  const hiddenCount = roofItems.length - ROOF_INITIAL_COUNT;
+  document.getElementById('dashRoofList').innerHTML = roofItems.length
+    ? displayItems.map(i=>itemCard(i,ROOF_FREEZERS)).join('')
+    : `<div class="empty">屋上冷凍庫に登録された商品がありません。</div>`;
+
+  // 「もっと見る」ボタン表示制御
+  const moreWrap = document.getElementById('dashRoofMoreWrap');
+  if(moreWrap){
+    if(!showAll && hiddenCount>0){
+      moreWrap.style.display='';
+      moreWrap.innerHTML=`<button class="roof-more-btn" onclick="toggleRoofMore()">▼ もっと見る（残り${hiddenCount}件）</button>`;
+    }else if(roofMoreExpanded && roofItems.length>ROOF_INITIAL_COUNT){
+      moreWrap.style.display='';
+      moreWrap.innerHTML=`<button class="roof-more-btn expanded" onclick="toggleRoofMore()">▲ 閉じる</button>`;
+    }else{
+      moreWrap.style.display='none';
+    }
+  }
+
+  // ── 店舗冷凍庫（S1-S4）──
+  const storeFilterCode='all';
+  let storeItems=unified.filter(i=>STORE_FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true));
+  if(storeFilterCode!=='all') storeItems=storeItems.filter(i=>getFreezerVisibility(i,storeFilterCode)===true);
+  storeItems=sortItems(storeItems,mode,STORE_FREEZERS);
+  document.getElementById('dashStoreCount').textContent=`${storeItems.length}件`;
+  document.getElementById('dashStoreList').innerHTML=storeItems.length
+    ? storeItems.map(i=>itemCard(i,STORE_FREEZERS)).join('')
+    : `<div class="empty">店舗冷凍庫に登録された商品がありません。</div>`;
+}
+function renderFreezers(){
+  // 屋上冷凍庫（F1-F4）専用
+  const _fzTab=document.querySelector('#fzMainTabs .dash-filter-tab.active')?.dataset?.tab||'all';
+  const activeBtn=_fzTab==='detail'?document.querySelector('#fzSubFilter .fz-filter-btn.active'):null;
+  const freezer=activeBtn?.dataset?.filter||'all';
+  const q=document.getElementById('searchFreezer')?.value?.trim().toLowerCase()||'';
+
+  const freezerGroups = ROOF_FREEZERS.filter(f=>freezer==='all' || freezer===f.code).map(f=>{
+    const rows = getUnifiedRowsForFreezer(f.code, q);
+
+    const totalKinds = rows.length;
+    const totalQty = rows.reduce((a,b)=>a+b.qty,0);
+    const body = rows.length ? rows.map(row=>{
+      const item = row.item;
+      const qty = row.qty;
+      const status = groupStatusOf(item, ROOF_FREEZERS); // 屋上グループの設定値で判定
+      const zeroOut = qty === 0;
+      const statusHtml = zeroOut
+        ? '<span class="status out">在庫切れ</span>'
+        : status==='low'
+        ? '<span class="status low">商品全体で不足</span>'
+        : status==='high'
+        ? '<span class="status high">商品全体で過剰</span>'
+        : '<span class="status ok">商品全体で適正</span>';
+      const zeroNote = zeroOut ? '<span class="zero-note">0（在庫なし）</span>' : '';
+      return `<div class="freezer-item-row ${zeroOut ? 'out-zero' : ''}">
+        <div class="freezer-item-top">
+          <div>
+            <div class="freezer-item-name">${escapeHtml(item.name)}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="freezer-item-qty ${String(f.code).toLowerCase()} ${zeroOut ? 'zero' : ''}">${qty}</div>
+            <div class="mini-note">${item.unit}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}</div>
+          <div class="item-menu-wrap">
+            <button class="item-menu-btn" type="button"
+onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
+            
+          </div>
+        </div>
+        <div class="freezer-item-actions">
+          <button class="stock-action-btn inbound" onclick="openQuickInbound('${item.id}','${f.code}')">＋ 入庫</button>
+          <button class="stock-action-btn refill" onclick="openQuickReplenish('${item.id}','${f.code}')">→ 補充</button>
+          <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${f.code}')">⇄ 移動</button>
+        </div>
+      </div>`;
+    }).join('') : `<div class="empty">この冷凍庫に表示対象の商品はありません。</div>`;
+
+    return `<div class="freezer-group ${String(f.code).toLowerCase()}">
+      <div class="freezer-group-head">
+        <div>
+          <div class="freezer-group-title ${String(f.code).toLowerCase()}">${f.name}</div>
+        </div>
+      </div>
+      <div class="freezer-items">${body}</div>
+      <div class="freezer-add-wrap">
+        <button class="freezer-add-btn ${String(f.code).toLowerCase()}" onclick="openFreezerItemModal('${f.code}')">＋ この冷凍庫に商品追加</button>
+      </div>
+    </div>`;
+  });
+
+  const fcEl=document.getElementById('freezerCount');
+  if(fcEl) fcEl.textContent=`${freezerGroups.length}基準`;
+  document.getElementById('freezerList').innerHTML=freezerGroups.join('') || `<div class="empty">該当する在庫はありません。</div>`;
+}
+
+// 店舗冷凍個別ビュー（S1-S4）
+function renderStoreFreezer(){
+  const _sfTab=document.querySelector('#sfMainTabs .dash-filter-tab.active')?.dataset?.tab||'all';
+  const activeBtn=_sfTab==='detail'?document.querySelector('#sfSubFilter .fz-filter-btn.active'):null;
+  const freezer=activeBtn?.dataset?.filter||'all';
+  const q=document.getElementById('searchStoreFreezer')?.value?.trim().toLowerCase()||'';
+
+  const groups=STORE_FREEZERS.filter(f=>freezer==='all'||freezer===f.code).map(f=>{
+    const rows=getUnifiedRowsForFreezer(f.code,q);
+    const body=rows.length?rows.map(row=>{
+      const item=row.item, qty=row.qty;
+      const status=groupStatusOf(item,STORE_FREEZERS);
+      const zeroOut=qty===0;
+      const statusHtml=zeroOut
+        ?'<span class="status out">在庫切れ</span>'
+        :status==='low'?'<span class="status low">商品全体で不足</span>'
+        :status==='high'?'<span class="status high">商品全体で過剰</span>'
+        :'<span class="status ok">商品全体で適正</span>';
+      return `<div class="freezer-item-row ${zeroOut?'out-zero':''}">
+        <div class="freezer-item-top">
+          <div><div class="freezer-item-name">${escapeHtml(item.name)}</div></div>
+          <div style="text-align:right">
+            <div class="freezer-item-qty ${fzCls(f.code)} ${zeroOut?'zero':''}">${qty}</div>
+            <div class="mini-note">${item.unit}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}</div>
+          <button class="item-menu-btn" type="button" onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
+        </div>
+        <div class="freezer-item-actions">
+          <button class="stock-action-btn inbound" onclick="openQuickInbound('${item.id}','${f.code}')">＋ 入庫</button>
+          <button class="stock-action-btn use" onclick="openQuickUse('${item.id}','${f.code}')">→ 使用</button>
+          <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${f.code}')">⇄ 移動</button>
+        </div>
+      </div>`;
+    }).join(''):`<div class="empty">この冷凍庫に表示対象の商品はありません。</div>`;
+
+    return `<div class="freezer-group ${fzCls(f.code)}">
+      <div class="freezer-group-head">
+        <div><div class="freezer-group-title ${fzCls(f.code)}">${f.name}</div></div>
+      </div>
+      <div class="freezer-items">${body}</div>
+      <div class="freezer-add-wrap">
+        <button class="freezer-add-btn ${fzCls(f.code)}" onclick="openFreezerItemModal('${f.code}')">＋ この冷凍庫に商品追加</button>
+      </div>
+    </div>`;
+  });
+  document.getElementById('storeFreezerList').innerHTML=groups.join('')||`<div class="empty">該当する在庫はありません。</div>`;
+}
+function renderAlerts(){
+  // ダッシュボード・KPIと同じ管理対象（visible=true が1つでもある）だけを対象にする
+  const items=buildUnifiedItems(state.items)
+    .filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true))
+    .filter(i=>statusOf(i)!=='ok')
+    .sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+  document.getElementById('alertCount').textContent=`${items.length}件`;
+  document.getElementById('alertList').innerHTML=items.length?items.map(itemCard).join(''):`<div class="empty">現在、アラートはありません。</div>`;
+}
+function renderHistory(){
+  const q=document.getElementById('historySearch')?.value?.trim().toLowerCase()||'', type=document.getElementById('historyType')?.value||'all';
+  let rows=[...state.history].sort((a,b)=>b.time-a.time);
+  rows=rows.filter(h=>{const okQ=!q||h.itemName.toLowerCase().includes(q)||h.user.toLowerCase().includes(q); const okT=type==='all'||h.type===type; return okQ&&okT});
+  document.getElementById('historyCount').textContent=`${rows.length}件`;
+  document.getElementById('historyList').innerHTML=rows.length?rows.map(h=>`<div class="history-card"><div class="history-main">${escapeHtml(h.user)} / ${escapeHtml(h.type)} / ${escapeHtml(h.itemName)} / ${h.qty}${escapeHtml(h.unit)}</div><div class="history-sub">${formatDate(h.time)} / ${escapeHtml(h.from)} → ${escapeHtml(h.to)}</div></div>`).join(''):`<div class="empty">履歴はありません。</div>`;
+}
+function fillItemSelects(){document.getElementById('moveItem').innerHTML=state.items.map(i=>`<option value="${i.id}">${escapeHtml(i.name)}</option>`).join('')}
+
+function makeStoreChecks(selected=[]){
+  const wrap=document.getElementById('storeChecks');
+  wrap.innerHTML=STORES.map(s=>`<button type="button" class="check ${selected.includes(s)?'active':''}" data-store="${s}">${s}</button>`).join('');
+  wrap.querySelectorAll('.check').forEach(btn=>btn.onclick=()=>btn.classList.toggle('active'));
+}
+
+function makeFreezerChecks(selected=[]){
+  // 屋上冷凍庫ボタン（No.1〜No.4）
+  const roofInner=document.getElementById('freezerChecksRoofInner');
+  if(roofInner){
+    roofInner.innerHTML=ROOF_FREEZERS.map(f=>`<button type="button" class="check ${selected.includes(f.code)?'active':''}" data-freezer="${f.code}">${f.name}</button>`).join('');
+    roofInner.querySelectorAll('.check').forEach(btn=>{
+      btn.onclick=()=>{btn.classList.toggle('active');syncHiddenFreezerChecks();renderInitialStockGrid();};
+    });
+  }
+  // 店舗冷凍庫ボタン（A〜D）
+  const storeInner=document.getElementById('freezerChecksStoreInner');
+  if(storeInner){
+    storeInner.innerHTML=STORE_FREEZERS.map(f=>`<button type="button" class="check ${selected.includes(f.code)?'active':''}" data-freezer="${f.code}">${f.name}</button>`).join('');
+    storeInner.querySelectorAll('.check').forEach(btn=>{
+      btn.onclick=()=>{btn.classList.toggle('active');syncHiddenFreezerChecks();renderInitialStockGrid();};
+    });
+  }
+  syncHiddenFreezerChecks();
+}
+
+// 非表示の freezerChecks をJS読み取り用に同期
+function syncHiddenFreezerChecks(){
+  const all=[...document.querySelectorAll('#freezerChecksRoofInner .check.active, #freezerChecksStoreInner .check.active')];
+  const hidden=document.getElementById('freezerChecks');
+  if(!hidden) return;
+  hidden.innerHTML=all.map(b=>`<button class="check active" data-freezer="${b.dataset.freezer}"></button>`).join('');
+}
+// モーダル表示モード適用
+// mode: 'roof'=屋上のみ / 'store'=店舗のみ / 'all'=両方
+let currentItemModalMode = 'all';
+function applyItemModalMode(mode){
+  currentItemModalMode = mode;
+  const roofEl  = document.getElementById('itemSectionRoof');
+  const storeEl = document.getElementById('itemSectionStore');
+  const badge   = document.getElementById('itemModalContextBadge');
+  if(roofEl)  roofEl.style.display  = (mode==='all'||mode==='roof')  ? '' : 'none';
+  if(storeEl) storeEl.style.display = (mode==='all'||mode==='store') ? '' : 'none';
+  if(badge){
+    badge.innerHTML = mode==='roof'
+      ? '<span class="modal-section-head roof" style="display:inline-block;padding:6px 12px">🏠 屋上冷凍庫の設定</span>'
+      : mode==='store'
+      ? '<span class="modal-section-head store" style="display:inline-block;padding:6px 12px">🏪 店舗冷凍庫の設定</span>'
+      : '';
+  }
+}
+// 旧タブ切り替え互換（呼び出し元が残っている場合のフォールバック）
+function switchItemModalTab(tab){applyItemModalMode(tab);}
+
+function renderInitialStockGrid(values={}){
+  const selected=[...document.querySelectorAll('#freezerChecks .check.active')].map(el=>el.dataset.freezer);
+
+  // 屋上グリッド（No.1〜No.4）
+  const roofWrap=document.getElementById('initialStockGridRoof');
+  if(roofWrap){
+    roofWrap.innerHTML=ROOF_FREEZERS.map(f=>{
+      const enabled=selected.includes(f.code);
+      const value=values[f.code]!=null?values[f.code]:0;
+      return `<div class="initial-stock-box ${enabled?'':'off'}">
+        <div class="initial-stock-head">
+          <div class="initial-stock-label">${f.name}</div>
+          <div class="mini-note">${enabled?'設定対象':'未選択'}</div>
+        </div>
+        <input class="form-input initial-stock-input" type="number" min="0" max="9999" value="${value}" data-stock-freezer="${f.code}" ${enabled?'':'disabled'}>
+      </div>`;
+    }).join('');
+  }
+
+  // 店舗グリッド（A〜D）
+  const storeWrap=document.getElementById('initialStockGridStore');
+  if(storeWrap){
+    storeWrap.innerHTML=STORE_FREEZERS.map(f=>{
+      const enabled=selected.includes(f.code);
+      const value=values[f.code]!=null?values[f.code]:0;
+      return `<div class="initial-stock-box ${enabled?'':'off'}">
+        <div class="initial-stock-head">
+          <div class="initial-stock-label">${f.name}</div>
+          <div class="mini-note">${enabled?'設定対象':'未選択'}</div>
+        </div>
+        <input class="form-input initial-stock-input" type="number" min="0" max="9999" value="${value}" data-stock-freezer="${f.code}" ${enabled?'':'disabled'}>
+      </div>`;
+    }).join('');
+  }
+}
+// mode: 'roof'=屋上のみ, 'store'=店舗のみ, 'all'=両方（デフォルト）
+function openItemModal(mode='all'){
+  editingItemId=null; currentEditFreezerCode=null; document.getElementById('itemModalTitle').textContent='商品を追加';
+  document.getElementById('itemName').value=''; document.getElementById('itemCategory').value='冷凍食材'; document.getElementById('itemUnit').value='個';
+  document.getElementById('itemMin').value=''; document.getElementById('itemMax').value='';
+  document.getElementById('itemMinStore').value=''; document.getElementById('itemMaxStore').value='';
+  makeStoreChecks([]);
+  makeFreezerChecks([]);
+  const allZero=Object.fromEntries(FREEZERS.map(f=>[f.code,0]));
+  renderInitialStockGrid(allZero);
+  applyItemModalMode(mode);
+  openModal('itemModalWrap');
+}
+// freezerCode を明示的に受け取ることで古い値の残留を防止
+// mode: 'roof'=屋上のみ, 'store'=店舗のみ, 'all'=両方
+function editItem(id, freezerCode=null, mode='all'){
+  const item=state.items.find(i=>i.id===id); if(!item)return;
+  // コンテキストを常に最新で上書き
+  currentEditFreezerCode = freezerCode;
+  editingItemId=id; document.getElementById('itemModalTitle').textContent='商品を編集';
+  document.getElementById('itemName').value=item.name; document.getElementById('itemCategory').value=item.category; document.getElementById('itemUnit').value=item.unit;
+  document.getElementById('itemMin').value=item.minRoof??item.min;
+  document.getElementById('itemMax').value=item.maxRoof??item.max;
+  document.getElementById('itemMinStore').value=item.minStore??item.min;
+  document.getElementById('itemMaxStore').value=item.maxStore??item.max;
+  makeStoreChecks(item.preferredStores||[]);
+  const selectedFreezers = FREEZERS.filter(f => getFreezerVisibility(item, f.code)).map(f => f.code);
+  makeFreezerChecks(selectedFreezers);
+  const stockValues=Object.fromEntries(FREEZERS.map(f=>[f.code,Number(item.freezerStock?.[f.code]||0)]));
+  renderInitialStockGrid(stockValues);
+  switchItemModalTab('roof');
+
+  let removeBtn = document.getElementById('removeFromFreezerInEditBtn');
+  if(!removeBtn){
+    const actions = document.querySelector('#itemModalWrap .modal-actions');
+    removeBtn = document.createElement('button');
+    removeBtn.id = 'removeFromFreezerInEditBtn';
+    removeBtn.className = 'danger';
+    removeBtn.type = 'button';
+    removeBtn.onclick = removeItemFromCurrentEditFreezer;
+    actions.insertBefore(removeBtn, actions.firstChild);
+  }
+
+  if(currentEditFreezerCode){
+    removeBtn.style.display = '';
+    removeBtn.textContent = `${freezerName(currentEditFreezerCode)}から外す`;
+  } else {
+    removeBtn.style.display = 'none';
+  }
+
+  applyItemModalMode(mode);
+  openModal('itemModalWrap');
+}
+async function saveItem(){
+  if(state.user.role==='オーナー'){alert('オーナー権限では商品登録・編集はできません。'); return}
+  const name=document.getElementById('itemName').value.trim(),
+        category=document.getElementById('itemCategory').value,
+        unit=document.getElementById('itemUnit').value;
+  const min=Number(document.getElementById('itemMin').value||0),
+        max=Number(document.getElementById('itemMax').value||0),
+        minStore=Number(document.getElementById('itemMinStore').value||0),
+        maxStore=Number(document.getElementById('itemMaxStore').value||0),
+        preferredStores=[...document.querySelectorAll('#storeChecks .check.active')].map(el=>el.dataset.store),
+        selectedFreezers=[...document.querySelectorAll('#freezerChecks .check.active')].map(el=>el.dataset.freezer);
+
+  if(!name){alert('商品名を入力してください。'); return}
+  if(max<min){alert('屋上冷凍庫の最大在庫数は最低在庫数以上にしてください。'); return}
+  if(maxStore<minStore){alert('店舗冷凍庫の最大在庫数は最低在庫数以上にしてください。'); return}
+
+  const initialStocks = {F1:0,F2:0,F3:0,F4:0};
+  document.querySelectorAll('[data-stock-freezer]').forEach(input=>{
+    const code=input.dataset.stockFreezer;
+    const val=Number(input.value||0);
+    initialStocks[code]=Number.isFinite(val) && val >= 0 ? val : 0;
+  });
+
+  let item;
+  if(editingItemId){
+    item=state.items.find(i=>i.id===editingItemId); if(!item)return;
+    item.name=name; item.category=category; item.unit=unit;
+    item.min=min; item.max=max;
+    item.minRoof=min; item.maxRoof=max;
+    item.minStore=minStore; item.maxStore=maxStore;
+    item.preferredStores=preferredStores;
+    if(!item.visibleInFreezers) item.visibleInFreezers=Object.fromEntries(FREEZERS.map(f=>[f.code,false]));
+    if(!item.freezerStock) item.freezerStock=Object.fromEntries(FREEZERS.map(f=>[f.code,0]));
+
+    // 重複チェック＋選択解除ガード（在庫残りのまま外せない）
+    for (const f of FREEZERS){
+      const selected = selectedFreezers.includes(f.code);
+      const wasSelected = getFreezerVisibility(item, f.code);
+      if(selected){
+        const duplicate = findSameNamedItemInFreezer(name, f.code, item.id);
+        if(duplicate){
+          alert(`同じ商品名「${name}」がすでに ${freezerName(f.code)} に登録されています。商品名または登録先を見直してください。`);
+          return;
+        }
+      }
+      // 在庫が残っている冷凍庫の選択を外そうとした場合はブロック
+      if(!selected && wasSelected && Number(item.freezerStock[f.code] || 0) > 0){
+        alert(`${freezerName(f.code)} に在庫が ${item.freezerStock[f.code]}${item.unit} 残っているため、選択を外せません。先に在庫を0にしてください。`);
+        return;
+      }
+    }
+
+    FREEZERS.forEach(f=>{
+      const selected = selectedFreezers.includes(f.code);
+      setFreezerVisibility(item, f.code, selected);
+      if(selected){
+        item.freezerStock[f.code] = initialStocks[f.code];
+      } else {
+        item.freezerStock[f.code] = 0; // 非選択は在庫0にクリア（幽霊在庫防止）
+      }
+    });
+
+    addHistory('商品編集', item, 0, '設定', '設定');
+    if(isCloudReady()){ try{ await cloudUpsertItem(item); await cloudReplaceFreezerStock(item); await cloudPushLatestHistory(state.history[0]); } catch(err){ console.error(err); alert('クラウド保存に失敗しました: '+(err.message||err)); return; } }
+  }else{
+    item={
+      id:'i'+Date.now(),
+      name,category,unit,min,max,
+      minRoof:min,maxRoof:max,minStore,maxStore,
+      preferredStores,usageCount:0,
+      freezerStock:Object.fromEntries(FREEZERS.map(f=>[f.code,0])),
+      visibleInFreezers:Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
+      storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}
+    };
+
+    // 新規商品の重複チェック（編集時と同様に）
+    for(const f of FREEZERS){
+      if(selectedFreezers.includes(f.code)){
+        const dup=findSameNamedItemInFreezer(name, f.code, null);
+        if(dup){
+          alert(`同じ商品名「${name}」がすでに ${freezerName(f.code)} に登録されています。商品名または登録先を見直してください。`);
+          return;
+        }
+      }
+    }
+
+    FREEZERS.forEach(f=>{
+      const selected = selectedFreezers.includes(f.code);
+      setFreezerVisibility(item, f.code, selected);
+      if(selected){
+        item.freezerStock[f.code] = initialStocks[f.code];
+      }
+    });
+
+    state.items.unshift(item);
+    addHistory('商品追加', item, 0, '設定', '設定');
+    if(isCloudReady()){ try{ await cloudUpsertItem(item); await cloudReplaceFreezerStock(item); await cloudPushLatestHistory(state.history[0]); } catch(err){ console.error(err); alert('クラウド保存に失敗しました: '+(err.message||err)); return; } }
+  }
+  closeModal('itemModalWrap'); render(); toast('✓ 商品を保存しました');
+}
+function addHistory(type,item,qty,from,to,user){
+  state.history.unshift({id:'h'+Date.now()+Math.random().toString(16).slice(2),type,user:user||state.user.name||'未設定',itemId:item.id,itemName:item.name,qty:Number(qty||0),unit:item.unit,from,to,time:Date.now()});
+  state.history=state.history.slice(0,300);
+}
+function openFreezerQuickAction(mode, freezerCode){
+  const firstVisible=state.items.find(i=>getFreezerVisibility(i,freezerCode)===true);
+  const prefillId=firstVisible?.id||state.items[0]?.id||null;
+  if(mode==='inbound') return openQuickInbound(prefillId,freezerCode);
+  if(mode==='toStore') return openQuickReplenish(prefillId,freezerCode);
+  // 移動はモーダルを継続使用
+  prefillFreezerCode=freezerCode;
+  openMoveModal(mode,{freezerCode});
+}
+
+
+let currentEditFreezerCode = null;
+
+function toggleItemMenu(menuId){
+  document.querySelectorAll('.item-menu-panel.open').forEach(el=>{
+    if(el.id !== menuId) el.classList.remove('open');
+  });
+  const panel = document.getElementById(menuId);
+  if(panel) panel.classList.toggle('open');
+}
+
+function closeAllItemMenus(){
+  document.querySelectorAll('.item-menu-panel.open').forEach(el=>el.classList.remove('open'));
+}
+
+function openEditItemFromFreezer(itemId, freezerCode){
+  closeAllItemMenus();
+  // 冷凍庫コードでグループを判定して対応するモードで開く
+  const mode = freezerCode && freezerCode.startsWith('S') ? 'store' : 'roof';
+  editItem(itemId, freezerCode, mode);
+}
+
+function removeItemFromCurrentEditFreezer(){
+  if(!editingItemId || !currentEditFreezerCode){
+    alert('対象冷凍庫が選択されていません。');
+    return;
+  }
+  closeModal('itemModalWrap');
+  removeItemFromFreezerByName(
+    (state.items.find(i => i.id === editingItemId)?.name || ''),
+    currentEditFreezerCode
+  );
+}
+
+function openContextMoveModal(mode,itemId,freezerCode){
+  prefillItemId=itemId;
+  prefillFreezerCode=freezerCode;
+  openMoveModal(mode, {itemId, freezerCode});
+}
+
+function openMoveModal(mode, context={}){
+  if(state.user.role==='オーナー'){alert('オーナー権限では在庫操作はできません。'); return}
+  moveMode=mode;
+  const itemId=context.itemId || prefillItemId || state.items[0]?.id || '';
+  const freezerCode=context.freezerCode || prefillFreezerCode;
+  document.getElementById('moveQty').value=1;
+  document.getElementById('moveUser').value=state.user.name||'';
+  document.getElementById('moveMemo').value='';
+  const from=document.getElementById('moveFrom'), to=document.getElementById('moveTo');
+  fillItemSelects();
+  document.getElementById('moveItem').value=itemId || document.getElementById('moveItem').value;
+  const selectedItem=state.items.find(i=>i.id===(itemId || document.getElementById('moveItem').value));
+  const currentQty=selectedItem && freezerCode ? Number(selectedItem.freezerStock[freezerCode]||0) : null;
+
+  if(mode==='inbound'){
+    document.getElementById('moveModalTitle').textContent='入庫';
+    from.innerHTML='<option value="仕入れ">仕入れ</option>';
+    to.innerHTML=FREEZERS.map(f=>`<option value="${f.code}" ${freezerCode===f.code?'selected':''}>${f.name}</option>`).join('');
+    document.getElementById('moveHelp').textContent='入庫では、仕入れからどの冷凍庫へ入れたかを記録します。';
+  }else if(mode==='toStore'){
+    // 店舗補充はクイックシートで処理（モーダルでは店舗冷凍庫Sコードを選べないため）
+    closeModal('moveModalWrap');
+    return openQuickReplenish(context.itemId || prefillItemId, context.freezerCode || prefillFreezerCode);
+  }else{
+    document.getElementById('moveModalTitle').textContent='冷凍庫間移動';
+    from.innerHTML=FREEZERS.map(f=>`<option value="${f.code}" ${freezerCode===f.code?'selected':''}>${f.name}</option>`).join('');
+    to.innerHTML=FREEZERS.map(f=>`<option value="${f.code}">${f.name}</option>`).join('');
+    document.getElementById('moveHelp').textContent='同じ冷凍庫同士は選べません。';
+  }
+
+  const itemName=selectedItem ? selectedItem.name : '商品を選択';
+  const freezerLabel=freezerCode ? freezerName(freezerCode) : '未選択';
+  const qtyText=currentQty==null ? '' : ` / 現在在庫 ${currentQty}${selectedItem.unit}`;
+  document.getElementById('moveContextText').textContent=`商品: ${itemName} / 対象: ${freezerLabel}${qtyText}`;
+  openModal('moveModalWrap');
+}
+async function submitMove(){
+  const itemId=document.getElementById('moveItem').value,
+        item=state.items.find(i=>i.id===itemId),
+        qty=Number(document.getElementById('moveQty').value||0),
+        user=document.getElementById('moveUser').value.trim()||state.user.name,
+        from=document.getElementById('moveFrom').value,
+        to=document.getElementById('moveTo').value,
+        memo=document.getElementById('moveMemo').value.trim();
+  if(!item){alert('商品を選択してください。'); return}
+  if(!item.visibleInFreezers) item.visibleInFreezers = {F1:false,F2:false,F3:false,F4:false};
+  if(!qty||qty<1){alert('数量は1以上で入力してください。'); return}
+  if(qty>9999){alert('数量の上限を超えています。'); return}
+
+  let historyType='', fromLabel='', toLabel='', confirmText='';
+
+  if(moveMode==='inbound'){
+    fromLabel='仕入れ'; toLabel=freezerName(to);
+    confirmText=`${item.name}を${toLabel}へ${qty}${item.unit}入庫します。よろしいですか？`;
+    if(!confirm(confirmText)) return;
+    item.freezerStock[to]=Number(item.freezerStock[to]||0)+qty;
+    setFreezerVisibility(item, to, true);
+    item.usageCount=Number(item.usageCount||0)+1;
+    historyType='入庫';
+    addHistory(historyType,item,qty,fromLabel,toLabel,user + (memo ? `（${memo}）` : ''));
+  }
+  if(moveMode==='toStore'){
+    if((Number(item.freezerStock[from]||0))<qty){alert('移動元冷凍庫の在庫が不足しています。'); return}
+    fromLabel=freezerName(from); toLabel=to;
+    confirmText=`${item.name}を${fromLabel}から${toLabel}へ${qty}${item.unit}補充します。よろしいですか？`;
+    if(!confirm(confirmText)) return;
+    item.freezerStock[from]=Number(item.freezerStock[from]||0)-qty;
+    item.storeMoved[to]=Number(item.storeMoved[to]||0)+qty;
+    item.usageCount=Number(item.usageCount||0)+1;
+    historyType='店舗補充';
+    addHistory(historyType,item,qty,fromLabel,toLabel,user + (memo ? `（${memo}）` : ''));
+  }
+  if(moveMode==='betweenFreezers'){
+    if(from===to){alert('移動元と移動先は別の冷凍庫を選んでください。'); return}
+    if((Number(item.freezerStock[from]||0))<qty){alert('移動元冷凍庫の在庫が不足しています。'); return}
+    fromLabel=freezerName(from); toLabel=freezerName(to);
+    confirmText=`${item.name}を${fromLabel}から${toLabel}へ${qty}${item.unit}移動します。よろしいですか？`;
+    if(!confirm(confirmText)) return;
+    item.freezerStock[from]=Number(item.freezerStock[from]||0)-qty;
+    item.freezerStock[to]=Number(item.freezerStock[to]||0)+qty;
+    setFreezerVisibility(item, to, true);
+    item.usageCount=Number(item.usageCount||0)+1;
+    historyType='冷凍庫移動';
+    addHistory(historyType,item,qty,fromLabel,toLabel,user + (memo ? `（${memo}）` : ''));
+  }
+
+  if(isCloudReady()){
+    try{
+      await cloudUpsertItem(item);
+      await cloudReplaceFreezerStock(item);
+      await cloudPushLatestHistory(state.history[0]);
+      await reloadAllFromSupabase(false);
+    }catch(err){
+      console.error(err);
+      alert('クラウド保存に失敗しました: ' + (err.message||err));
+      return;
+    }
+  }
+
+  closeModal('moveModalWrap');
+  render();
+  toast('✓ 在庫操作を保存しました');
+}
+function saveUserSettings(){
+  const name=document.getElementById('userNameInput').value.trim(), role=document.getElementById('userRoleInput').value;
+  if(!name){alert('利用者名を入力してください。'); return} if(!ROLES.includes(role)){alert('権限が不正です。'); return}
+  state.user={name,role}; render(); if(isCloudReady()) upsertMyProfile().catch(console.error); alert('利用者設定を保存しました。');
+}
+async function resetAll(){
+  if(!confirm('すべてのデータを初期状態に戻します。よろしいですか？')) return;
+  state=JSON.parse(JSON.stringify(initialState)); render();
+  if(isCloudReady()){
+    try{
+      await cloudReplaceAllFromLocal();
+      await reloadAllFromSupabase(false);
+    }catch(err){console.error(err); alert('クラウド同期に失敗しました: '+(err.message||err))}
+  }
+}
+
+/* ==== Supabase ==== */
+async function connectSupabase(){
+  const url=document.getElementById('cloudUrl').value.trim(), anonKey=document.getElementById('cloudAnonKey').value.trim(),
+        email=document.getElementById('cloudEmail').value.trim(), password=document.getElementById('cloudPassword').value.trim();
+  if(!url||!anonKey||!email||!password){alert('Supabase URL / Anon Key / メール / パスワードを入力してください。'); return}
+  try{
+    supabaseClient=window.supabase.createClient(url, anonKey);
+    const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+    if(error) throw error;
+    currentAuthUser=data.user; cloudEnabled=true;
+    saveCloudConfig({url,anonKey,email,password});
+    await upsertMyProfile();
+    await ensureCloudSeed();
+    await reloadAllFromSupabase(false);
+    await checkSchemaVersion();  // スキーマ確認
+    updateSyncStatus('接続中: '+email, true);
+    closeModal('cloudModalWrap');
+    toast('☁ Supabase に接続しました');
+  }catch(err){
+    console.error(err); cloudEnabled=false; updateSyncStatus('接続失敗');
+    alert('接続に失敗しました: '+(err.message||err));
+  }
+}
+
+// ---- スキーマバージョンチェック ----
+// visible_in_freezers カラムの有無を確認し、未追加なら設定画面に案内を表示する
+async function checkSchemaVersion(){
+  if(!isCloudReady()) return;
+  const box = document.getElementById('schemaMigrationBox');
+  if(!box) return;
+  try{
+    // visible_in_freezers と min_store/max_store の両方をチェック
+    const {error} = await supabaseClient.from('rooftop_items').select('visible_in_freezers,min_store,max_store').limit(1);
+    const missing = error && (
+      error.code === '42703' ||
+      String(error.message||'').toLowerCase().includes('visible_in_freezers') ||
+      String(error.message||'').toLowerCase().includes('min_store') ||
+      String(error.message||'').toLowerCase().includes('max_store')
+    );
+    if(missing){
+      box.style.display = '';
+      toast('⚠️ スキーマ更新が必要です（設定 → 確認）');
+    }else{
+      box.style.display = 'none';
+    }
+  }catch(e){
+    console.warn('checkSchemaVersion:', e);
+  }
+}
+
+function copyMigrationSql(){
+  const el = document.getElementById('migrationSql');
+  if(!el) return;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(el.value)
+      .then(()=>toast('✓ SQLをコピーしました'))
+      .catch(()=>{ el.select(); document.execCommand('copy'); toast('✓ SQLをコピーしました'); });
+  }else{
+    el.select(); document.execCommand('copy'); toast('✓ SQLをコピーしました');
+  }
+}
+
+async function tryAutoConnectSupabase(){
+  const cfg=cloudConfig(); if(!cfg.url||!cfg.anonKey) return;
+  try{
+    supabaseClient=window.supabase.createClient(cfg.url, cfg.anonKey);
+    const {data}=await supabaseClient.auth.getSession();
+    if(data?.session?.user){
+      currentAuthUser=data.session.user; cloudEnabled=true;
+      await upsertMyProfile(); await ensureCloudSeed(); await reloadAllFromSupabase(false);
+      await checkSchemaVersion();
+      updateSyncStatus('接続中: '+(cfg.email||currentAuthUser.email||'logged-in'), true); return;
+    }
+    if(cfg.email&&cfg.password){
+      const {data:loginData,error:loginError}=await supabaseClient.auth.signInWithPassword({email:cfg.email,password:cfg.password});
+      if(loginError) throw loginError;
+      currentAuthUser=loginData.user; cloudEnabled=true;
+      await upsertMyProfile(); await ensureCloudSeed(); await reloadAllFromSupabase(false);
+      await checkSchemaVersion();
+      updateSyncStatus('接続中: '+(cfg.email||currentAuthUser.email||'logged-in'), true);
+    }else updateSyncStatus('設定済み（再ログイン待ち）');
+  }catch(err){console.error(err); updateSyncStatus('接続失敗')}
+}
+async function upsertMyProfile(){
+  if(!supabaseClient||!currentAuthUser) return;
+  await supabaseClient.from('profiles').upsert({id:currentAuthUser.id, display_name:state.user.name||currentAuthUser.email?.split('@')[0]||'staff'});
+}
+async function ensureCloudSeed(){
+  if(!isCloudReady()) return;
+  const {count,error}=await supabaseClient.from('rooftop_items').select('*',{count:'exact',head:true});
+  if(error) throw error;
+  if((count||0)===0) await cloudReplaceAllFromLocal();
+}
+async function cloudReplaceAllFromLocal(){
+  if(!isCloudReady()) return;
+  const itemIds=state.items.map(i=>i.id);
+  if(itemIds.length){
+    await supabaseClient.from('rooftop_freezer_stock').delete().in('item_id', itemIds);
+    await supabaseClient.from('rooftop_items').upsert(state.items.map(item=>cloudItemRow(item)));
+  }else{
+    await supabaseClient.from('rooftop_freezer_stock').delete().neq('item_id','');
+  }
+  for(const item of state.items){
+    await cloudReplaceFreezerStock(item);
+  }
+  await supabaseClient.from('rooftop_history').delete().gte('created_at','1900-01-01');
+  if(state.history.length){
+    await supabaseClient.from('rooftop_history').insert(state.history.map(h=>cloudHistoryRow(h)));
+  }
+}
+function cloudItemRow(item){
+  return {
+    id:item.id,name:item.name,category:item.category,unit:item.unit,
+    min_stock:item.min,max_stock:item.max,
+    // min_store / max_store はローカル保存のみ（クラウド同期にはSQLでカラム追加が必要）
+    preferred_stores:item.preferredStores||[],
+    usage_count:item.usageCount||0,
+    is_active:true,
+    visible_in_freezers: item.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false]))
+  };
+}
+async function cloudUpsertItem(item){
+  const {error}=await supabaseClient.from('rooftop_items').upsert(cloudItemRow(item));
+  if(error) throw error;
+}
+async function cloudReplaceFreezerStock(item){
+  const {error:delError}=await supabaseClient.from('rooftop_freezer_stock').delete().eq('item_id', item.id);
+  if(delError) throw delError;
+  const rows=FREEZERS.map(f=>({item_id:item.id,freezer_code:f.code,quantity:Number(item.freezerStock[f.code]||0)}));
+  const {error:insError}=await supabaseClient.from('rooftop_freezer_stock').insert(rows);
+  if(insError) throw insError;
+}
+function cloudHistoryRow(h){
+  const map={'入庫':'inbound','店舗補充':'to_store','冷凍庫移動':'between_freezers','商品追加':'item_created','冷凍庫へ商品追加':'item_added_to_freezer','冷凍庫から商品削除':'item_removed_from_freezer','商品編集':'item_updated'};
+  return {id:h.id,action_type:map[h.type]||h.type,acted_by_name:h.user,item_id:h.itemId,item_name_snapshot:h.itemName,quantity:h.qty,unit:h.unit,from_scope:h.from,to_scope:h.to,created_at:new Date(h.time).toISOString()};
+}
+async function cloudPushLatestHistory(h){
+  if(!h) return;
+  const {error}=await supabaseClient.from('rooftop_history').upsert(cloudHistoryRow(h));
+  if(error) throw error;
+}
+async function reloadAllFromSupabase(showToast=true){
+  if(!isCloudReady()){ if(showToast) alert('Supabase未接続です。'); return; }
+  try{
+    updateSyncStatus('同期中...');
+    const [itemsRes, stockRes, historyRes]=await Promise.all([
+      supabaseClient.from('rooftop_items').select('*').eq('is_active', true).order('name'),
+      supabaseClient.from('rooftop_freezer_stock').select('*'),
+      supabaseClient.from('rooftop_history').select('*').order('created_at',{ascending:false}).limit(300)
+    ]);
+    if(itemsRes.error) throw itemsRes.error;
+    if(stockRes.error) throw stockRes.error;
+    if(historyRes.error) throw historyRes.error;
+
+    const stockMap={};
+    (stockRes.data||[]).forEach(r=>{
+      if(!stockMap[r.item_id]) stockMap[r.item_id]={F1:0,F2:0,F3:0,F4:0};
+      stockMap[r.item_id][r.freezer_code]=Number(r.quantity||0);
+    });
+
+    const prevStoreMoved=Object.fromEntries(state.items.map(i=>[i.id, i.storeMoved||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}]));
+    const prevVisibility=Object.fromEntries(state.items.map(i=>[i.id, i.visibleInFreezers||null]));
+    state.items=(itemsRes.data||[]).map(r=>({
+      id:r.id,name:r.name,category:r.category,unit:r.unit,min:Number(r.min_stock||0),max:Number(r.max_stock||0),
+      preferredStores:Array.isArray(r.preferred_stores)?r.preferred_stores:[], usageCount:Number(r.usage_count||0),
+      freezerStock:stockMap[r.id]||{F1:0,F2:0,F3:0,F4:0},
+      // 優先順位: ① クラウドのvisible_in_freezers ② ローカルのprevVisibility ③ 在庫から推論
+      visibleInFreezers: inferVisibleInFreezers(r.id, stockMap, r.visible_in_freezers || prevVisibility[r.id]),
+      storeMoved:prevStoreMoved[r.id]||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}
+    }));
+
+    state.history=(historyRes.data||[]).map(r=>({
+      id:r.id,
+      type:({'inbound':'入庫','to_store':'店舗補充','between_freezers':'冷凍庫移動','item_created':'商品追加','item_added_to_freezer':'冷凍庫へ商品追加','item_removed_from_freezer':'冷凍庫から商品削除','item_updated':'商品編集'})[r.action_type]||r.action_type,
+      user:r.acted_by_name||'未設定', itemId:r.item_id, itemName:r.item_name_snapshot||'不明商品', qty:Number(r.quantity||0), unit:r.unit||'個',
+      from:r.from_scope||'', to:r.to_scope||'', time:new Date(r.created_at).getTime()
+    }));
+    saveState(); rerenderAllViews();
+    updateSyncStatus('接続中: '+(cloudConfig().email||currentAuthUser?.email||'cloud'), true);
+    if(showToast) toast('☁ クラウド同期しました');
+  }catch(err){
+    console.error(err); updateSyncStatus('同期失敗'); if(showToast) alert('同期に失敗しました: '+(err.message||err));
+  }
+}
+
+function fillExistingItemOptions(targetFreezerCode){
+  const select = document.getElementById('existingItemSelect');
+  const items = state.items.filter(item => !(item.visibleInFreezers && item.visibleInFreezers[targetFreezerCode]));
+  select.innerHTML = items.length
+    ? items.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')
+    : '<option value="">追加できる既存商品がありません</option>';
+}
+function openFreezerItemModal(freezerCode){
+  currentFreezerContext = freezerCode;
+  document.getElementById('freezerItemModalTitle').textContent = 'この冷凍庫に商品追加';
+  document.getElementById('freezerItemContext').textContent = `${freezerName(freezerCode)} に表示する商品を追加します。`;
+  document.getElementById('freezerItemMode').value = 'existing';
+  document.getElementById('existingItemSection').style.display = '';
+  document.getElementById('newItemSection').style.display = 'none';
+  document.getElementById('freezerItemTarget').innerHTML = FREEZERS.map(f => `<option value="${f.code}" ${f.code===freezerCode?'selected':''}>${f.name}</option>`).join('');
+  document.getElementById('freezerItemInitialQty').value = 0;
+  document.getElementById('freezerItemVisibleFlag').value = 'true';
+  document.getElementById('newFreezerItemName').value = '';
+  document.getElementById('newFreezerItemCategory').value = '冷凍食材';
+  document.getElementById('newFreezerItemUnit').value = '個';
+  document.getElementById('newFreezerItemMin').value = '';
+  document.getElementById('newFreezerItemMax').value = '';
+  fillExistingItemOptions(freezerCode);
+  openModal('freezerItemModalWrap');
+}
+function submitFreezerItemModal(){
+  if(state.user.role === 'オーナー'){
+    alert('オーナー権限では商品追加できません。');
+    return;
+  }
+  const mode = document.getElementById('freezerItemMode').value;
+  const freezerCode = document.getElementById('freezerItemTarget').value;
+  const initialQty = Number(document.getElementById('freezerItemInitialQty').value || 0);
+  const visibleFlag = document.getElementById('freezerItemVisibleFlag').value === 'true';
+
+  if(initialQty < 0 || initialQty > 9999){
+    alert('初期数量を確認してください。');
+    return;
+  }
+
+  let item = null;
+
+  if(mode === 'existing'){
+    const itemId = document.getElementById('existingItemSelect').value;
+    item = state.items.find(i => i.id === itemId);
+    if(!item){
+      alert('既存商品を選択してください。');
+      return;
+    }
+    // 選択した商品がすでにこの冷凍庫に登録済みかを直接確認（加算バグ防止）
+    if(getFreezerVisibility(item, freezerCode)){
+      alert(`「${item.name}」はすでに ${freezerName(freezerCode)} に登録されています。重複登録はできません。`);
+      return;
+    }
+    const duplicate = findSameNamedItemInFreezer(item.name, freezerCode, item.id);
+    if(duplicate){
+      alert(`同じ商品名「${item.name}」がすでに ${freezerName(freezerCode)} に登録されています。重複登録はできません。`);
+      return;
+    }
+    if(!item.visibleInFreezers) item.visibleInFreezers = Object.fromEntries(FREEZERS.map(f=>[f.code,false]));
+    setFreezerVisibility(item, freezerCode, true);
+    item.freezerStock[freezerCode] = initialQty;  // 加算ではなく初期在庫として設定
+    addHistory('冷凍庫へ商品追加', item, initialQty, '設定', freezerName(freezerCode), state.user.name);
+  } else {
+    const name = document.getElementById('newFreezerItemName').value.trim();
+    const category = document.getElementById('newFreezerItemCategory').value;
+    const unit = document.getElementById('newFreezerItemUnit').value;
+    const min = Number(document.getElementById('newFreezerItemMin').value || 0);
+    const max = Number(document.getElementById('newFreezerItemMax').value || 0);
+    if(!name){
+      alert('商品名を入力してください。');
+      return;
+    }
+    if(max < min){
+      alert('最大在庫数は最低在庫数以上にしてください。');
+      return;
+    }
+    const duplicate = findSameNamedItemInFreezer(name, freezerCode, null);
+    if(duplicate){
+      alert(`同じ商品名「${name}」がすでに ${freezerName(freezerCode)} に登録されています。重複登録はできません。`);
+      return;
+    }
+    item = {
+      id:'i'+Date.now(),
+      name, category, unit, min, max,
+      preferredStores: [],
+      usageCount: 0,
+      freezerStock: Object.fromEntries(FREEZERS.map(f=>[f.code,0])),
+      visibleInFreezers: Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
+      storeMoved: {'神楽坂':0,'男マエ食道':0,'深夜食道':0}
+    };
+    setFreezerVisibility(item, freezerCode, true);
+    item.freezerStock[freezerCode] = initialQty;
+    state.items.unshift(item);
+    addHistory('商品追加', item, 0, '設定', '設定', state.user.name);
+    addHistory('冷凍庫へ商品追加', item, initialQty, '設定', freezerName(freezerCode), state.user.name);
+  }
+
+  saveState();
+  if(isCloudReady()){
+    // 新規登録時は「商品追加」「冷凍庫へ商品追加」の2件を両方クラウドへ保存
+    const historyToSave = mode === 'new'
+      ? [state.history[0], state.history[1]].filter(Boolean)  // [冷凍庫へ商品追加, 商品追加]
+      : [state.history[0]];                                    // [冷凍庫へ商品追加]
+    Promise.resolve()
+      .then(() => cloudUpsertItem(item))
+      .then(() => cloudReplaceFreezerStock(item))
+      .then(() => Promise.all(historyToSave.map(h => cloudPushLatestHistory(h))))
+      .catch(err => {
+        console.error(err);
+        alert('クラウド保存に失敗しました: ' + (err.message || err));
+      });
+  }
+  closeModal('freezerItemModalWrap');
+  render();
+  toast('✓ 冷凍庫に商品を追加しました');
+}
+function removeItemFromFreezerByName(itemName, freezerCode){
+  const normalized = String(itemName || '').trim().toLowerCase();
+  const targets = state.items.filter(item =>
+    String(item.name || '').trim().toLowerCase() === normalized &&
+    getFreezerVisibility(item, freezerCode) === true
+  );
+  if(!targets.length) return;
+
+  const totalQty = targets.reduce((sum, item) => sum + Number(item.freezerStock?.[freezerCode] || 0), 0);
+  if(state.user.role === 'オーナー'){
+    alert('オーナー権限では削除できません。');
+    return;
+  }
+  if(Number(totalQty) > 0){
+    alert('在庫が残っているため外せません。先に在庫を0にしてください。');
+    return;
+  }
+  if(!confirm(`${itemName} を ${freezerName(freezerCode)} の表示対象から外します。よろしいですか？`)){
+    return;
+  }
+  targets.forEach(item => setFreezerVisibility(item, freezerCode, false));
+  addHistory('冷凍庫から商品削除', targets[0], 0, freezerName(freezerCode), '表示対象から外す', state.user.name);
+  saveState();
+  render();
+  if(isCloudReady()){
+    Promise.resolve()
+      .then(() => Promise.all(targets.map(item => cloudUpsertItem(item).then(() => cloudReplaceFreezerStock(item)))))
+      .then(() => cloudPushLatestHistory(state.history[0]))
+      .catch(err => {
+        console.error(err);
+        alert('クラウド保存に失敗しました: ' + (err.message || err));
+      });
+  }
+  toast('✓ この冷凍庫から外しました');
+}
+
+function removeItemFromFreezer(itemId, freezerCode){
+  const item = state.items.find(i => i.id === itemId);
+  if(!item) return;
+  if(state.user.role === 'オーナー'){
+    alert('オーナー権限では削除できません。');
+    return;
+  }
+  if(state.user.role === '担当者' && Number(item.freezerStock[freezerCode] || 0) > 0){
+    alert('在庫が残っている商品は外せません。先に在庫を0にしてください。');
+    return;
+  }
+  if(Number(item.freezerStock[freezerCode] || 0) > 0){
+    alert('在庫が残っているため外せません。先に在庫を0にしてください。');
+    return;
+  }
+  if(!confirm(`${item.name} を ${freezerName(freezerCode)} の表示対象から外します。よろしいですか？`)){
+    return;
+  }
+  setFreezerVisibility(item, freezerCode, false);
+  addHistory('冷凍庫から商品削除', item, 0, freezerName(freezerCode), '表示対象から外す', state.user.name);
+  saveState();
+  render();
+  if(isCloudReady()){
+    Promise.resolve()
+      .then(() => cloudUpsertItem(item))
+      .then(() => cloudReplaceFreezerStock(item))
+      .then(() => cloudPushLatestHistory(state.history[0]))
+      .catch(err => {
+        console.error(err);
+        alert('クラウド保存に失敗しました: ' + (err.message || err));
+      });
+  }
+  toast('✓ この冷凍庫から外しました');
+}
+
+/* ==== Quick Sheet（クイック入庫・補充ボトムシート） ==== */
+// 冷凍庫番号変換（F1/S1→No.1 など、グループ問わず番号のみ）
+function fzIdx(code){const m=String(code).match(/[A-Z](\d+)/);return m?parseInt(m[1])-1:-1;}
+function fzNum(code){
+  if(String(code).startsWith('S')){return(['A','B','C','D','-60度'][fzIdx(code)])||code;}
+  if(code==='F5') return 'アパート';
+  const n=fzIdx(code)+1;return n>0?'No.'+n:code;
+}
+// CSSクラス（S1→f1 として屋上と同じカラーを再利用）
+function fzCls(code){const n=fzIdx(code)+1;return n>0?'f'+n:String(code).toLowerCase();}
+// グループ別合計在庫
+// visible=true の冷凍庫のみ合算（非表示の幽霊在庫を除外）
+function groupStock(item,fzSet){
+  return fzSet
+    .filter(f=>getFreezerVisibility(item,f.code))
+    .reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
+}
+function groupStatusOf(item,fzSet){
+  const t=groupStock(item,fzSet);
+  // グループ別の上下限を使用（未設定なら共通 min/max にフォールバック）
+  const isRoof  = fzSet && fzSet.length>0 && fzSet[0].code.startsWith('F');
+  const isStore = fzSet && fzSet.length>0 && fzSet[0].code.startsWith('S');
+  const minVal = isRoof  ? Number(item.minRoof  ?? item.min ?? 0)
+               : isStore ? Number(item.minStore ?? item.min ?? 0)
+               : Number(item.min||0);
+  const maxVal = isRoof  ? Number(item.maxRoof  ?? item.max ?? 0)
+               : isStore ? Number(item.maxStore ?? item.max ?? 0)
+               : Number(item.max||0);
+  if(t<minVal) return 'low';
+  if(t>maxVal) return 'high';
+  return 'ok';
+}
+
+// 状態
+let qsState={mode:null,itemId:null,fromFreezerCode:null,freezerCode:null,store:null,targetFreezer:null,qty:1,scopeFilter:null};
+let qsCooldown=false; // タッチ連打防止
+
+// 入庫シートを開く
+function openQuickInbound(itemId,prefillCode=null,scopeFilter=null){
+  if(state.user.role==='オーナー'){alert('オーナー権限では在庫操作はできません。');return;}
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item) return;
+  if(!scopeFilter&&prefillCode) scopeFilter=prefillCode.startsWith('S')?'store':prefillCode.startsWith('F')?'roof':null;
+  const scopedF=scopeFilter==='roof'?ROOF_FREEZERS:scopeFilter==='store'?STORE_FREEZERS:FREEZERS;
+  const visF=scopedF.filter(f=>getFreezerVisibility(item,f.code));
+  const autoF=visF.length===1?visF[0].code:(prefillCode&&getFreezerVisibility(item,prefillCode)?prefillCode:null);
+  qsState={mode:'inbound',itemId,freezerCode:autoF,store:null,qty:1,scopeFilter};
+  renderQs();
+  document.getElementById('qsWrap').classList.add('open');
+}
+
+// 補充シートを開く
+function openQuickReplenish(itemId,prefillCode=null){
+  if(state.user.role==='オーナー'){alert('オーナー権限では在庫操作はできません。');return;}
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item){alert('商品が見つかりません。');return;}
+  // 補充元は屋上冷凍庫（F-code）のみ
+  const srcSet=prefillCode&&prefillCode.startsWith('S')?STORE_FREEZERS:ROOF_FREEZERS;
+  const roofTotal=srcSet.reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
+  if(roofTotal===0){alert('補充元の冷凍庫に在庫がありません。');return;}
+  const visF=srcSet.filter(f=>getFreezerVisibility(item,f.code)&&Number(item.freezerStock[f.code]||0)>0);
+  const autoF=visF.length===1?visF[0].code:(prefillCode&&srcSet.some(f=>f.code===prefillCode)&&Number(item.freezerStock[prefillCode]||0)>0?prefillCode:null);
+  const pref=item.preferredStores||[];
+  const autoStore=pref.length===1?pref[0]:null;
+  qsState={mode:'replenish',itemId,freezerCode:autoF,store:autoStore,targetFreezer:null,qty:1};
+  renderQs();
+  document.getElementById('qsWrap').classList.add('open');
+}
+
+// シートを閉じる
+function closeQs(){
+  document.getElementById('qsWrap').classList.remove('open');
+  qsState={mode:null,itemId:null,fromFreezerCode:null,freezerCode:null,store:null,targetFreezer:null,qty:1};
+}
+
+// 冷凍庫選択
+function qsFreezer(code){
+  qsState.freezerCode=code;
+  if(qsState.mode==='replenish'){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item){const max=Number(item.freezerStock[code]||0);if(qsState.qty>max)qsState.qty=Math.max(1,max||1);}
+  }
+  renderQs();
+}
+
+// お店選択（お店変更時は冷凍庫サブ選択をリセット）
+function qsStore(s){qsState.store=s;qsState.targetFreezer=null;renderQs();}
+// 補充先の店舗冷凍庫選択
+function qsTargetFreezer(code){qsState.targetFreezer=code;renderQs();}
+
+// ±ステッパー（タッチ連打を280ms防止してスクロール中の誤操作を回避）
+function qsStep(d){
+  if(qsCooldown)return;
+  qsCooldown=true;setTimeout(()=>qsCooldown=false,280);
+  let max=999;
+  if(qsState.mode==='replenish'&&qsState.freezerCode){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item)max=Number(item.freezerStock[qsState.freezerCode]||0)||1;
+  }
+  if(qsState.mode==='move'&&qsState.fromFreezerCode){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item)max=Number(item.freezerStock[qsState.fromFreezerCode]||0)||1;
+  }
+  if(qsState.mode==='use'&&qsState.freezerCode){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item)max=Number(item.freezerStock[qsState.freezerCode]||0)||1;
+  }
+  qsState.qty=Math.max(1,Math.min(max,qsState.qty+d));
+  renderQs();
+}
+
+// プリセット数量ボタン
+function qsPreset(v){
+  if(qsCooldown)return;
+  let max=999;
+  if(qsState.mode==='replenish'&&qsState.freezerCode){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item)max=Number(item.freezerStock[qsState.freezerCode]||0)||1;
+  }
+  if(qsState.mode==='move'&&qsState.fromFreezerCode){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item)max=Number(item.freezerStock[qsState.fromFreezerCode]||0)||1;
+  }
+  if(qsState.mode==='use'&&qsState.freezerCode){
+    const item=state.items.find(i=>i.id===qsState.itemId);
+    if(item)max=Number(item.freezerStock[qsState.freezerCode]||0)||1;
+  }
+  qsState.qty=Math.max(1,Math.min(max,v));
+  renderQs();
+}
+
+// シート内容をレンダリング
+function renderQs(){
+  const{mode,itemId,freezerCode,store,qty}=qsState;
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item)return;
+  const total=totalStock(item);
+  let html='';
+
+  if(mode==='inbound'){
+    const _sf=qsState.scopeFilter;
+    const _scopedF=_sf==='roof'?ROOF_FREEZERS:_sf==='store'?STORE_FREEZERS:FREEZERS;
+    const visF=_scopedF.filter(f=>getFreezerVisibility(item,f.code));
+    html=`<div class="qs-drag"><div class="qs-drag-bar"></div></div>
+<div class="qs-head"><p class="qs-title">${escapeHtml(item.name)}　入庫</p>
+<p class="qs-sub">現在の合計在庫：<strong>${total}${item.unit}</strong></p></div>
+<div class="qs-body">`;
+    if(visF.length>1){
+      html+=`<div class="qs-sec"><div class="qs-sec-label">どの冷凍庫に入庫しますか？</div><div class="qs-chips">`;
+      visF.forEach(f=>{
+        const q=Number(item.freezerStock[f.code]||0);
+        html+=`<button class="qs-chip${freezerCode===f.code?' on':''}" onclick="qsFreezer('${f.code}')">冷凍庫${fzNum(f.code)}<div class="qs-chip-sub">現在 ${q}${item.unit}</div></button>`;
+      });
+      html+=`</div></div>`;
+    }else if(visF.length===1){
+      html+=`<div class="qs-stock-hint">入庫先：冷凍庫${fzNum(visF[0].code)}（現在 ${Number(item.freezerStock[visF[0].code]||0)}${item.unit}）</div>`;
+    }
+    html+=`<div class="qs-sec"><div class="qs-sec-label">入庫する数量</div>
+<div class="qs-stepper">
+  <button class="qs-step-btn minus" onclick="qsStep(-1)">－</button>
+  <div class="qs-num-block"><div class="qs-qty-num">${qty}</div><div class="qs-qty-unit">${item.unit}</div></div>
+  <button class="qs-step-btn plus" onclick="qsStep(1)">＋</button>
+</div>
+<div class="qs-presets">
+  <button class="qs-preset" onclick="qsPreset(1)">1</button>
+  <button class="qs-preset" onclick="qsPreset(5)">5</button>
+  <button class="qs-preset" onclick="qsPreset(10)">10</button>
+</div></div></div>`;
+    const ok=freezerCode&&qty>=1;
+    const lbl=ok?`冷凍庫${fzNum(freezerCode)}へ　${qty}${item.unit}　入庫する`:'入庫先の冷凍庫を選んでください';
+    html+=`<div class="qs-footer"><button class="qs-exec"${ok?' onclick="execInbound()"':' disabled'}>${lbl}</button>
+<button class="qs-cancel" onclick="closeQs()">キャンセル</button></div>`;
+
+  }else if(mode==='replenish'){
+    // 補充元は同一グループ（Fコード→屋上、Sコード→店舗）のみ表示
+    const srcSet=freezerCode&&freezerCode.startsWith('S')?STORE_FREEZERS:ROOF_FREEZERS;
+    const visF=srcSet.filter(f=>getFreezerVisibility(item,f.code)&&Number(item.freezerStock[f.code]||0)>0);
+    const pref=item.preferredStores||[];
+    const sortedStores=[...pref,...STORES.filter(s=>!pref.includes(s))];
+    const curStock=freezerCode?Number(item.freezerStock[freezerCode]||0):null;
+    html=`<div class="qs-drag"><div class="qs-drag-bar"></div></div>
+<div class="qs-head"><p class="qs-title">${escapeHtml(item.name)}　補充</p>
+<p class="qs-sub">合計在庫：<strong>${total}${item.unit}</strong></p></div>
+<div class="qs-body">`;
+    if(visF.length>1){
+      html+=`<div class="qs-sec"><div class="qs-sec-label">どの冷凍庫から出しますか？</div><div class="qs-chips">`;
+      visF.forEach(f=>{
+        const q=Number(item.freezerStock[f.code]||0);
+        html+=`<button class="qs-chip${freezerCode===f.code?' on':''}" onclick="qsFreezer('${f.code}')">冷凍庫${fzNum(f.code)}<div class="qs-chip-sub">${q}${item.unit}</div></button>`;
+      });
+      html+=`</div></div>`;
+    }else if(visF.length===1){
+      html+=`<div class="qs-stock-hint">補充元：冷凍庫${fzNum(visF[0].code)}（${Number(item.freezerStock[visF[0].code]||0)}${item.unit}）</div>`;
+    }
+    const{targetFreezer}=qsState;
+    // ── Step2: お店選択 ──
+    html+=`<div class="qs-sec"><div class="qs-sec-label">補充先のお店</div><div class="qs-chips">
+      <button class="qs-chip${store==='神楽坂・深夜食道'?' on':''}" onclick="qsStore('神楽坂・深夜食道')">神楽坂・深夜食道<div class="qs-chip-sub">よく補充</div></button>
+      <button class="qs-chip${store==='男マエ食道'?' on':''}" onclick="qsStore('男マエ食道')">男マエ食道<div class="qs-chip-sub">&nbsp;</div></button>
+    </div></div>`;
+    // ── Step3: お店の冷凍庫 A〜D 選択（お店選択後に表示）──
+    if(store && store !== '男マエ食道'){
+      html+=`<div class="qs-sec"><div class="qs-sec-label">どの冷凍庫に入れますか？</div><div class="qs-fz-grid">`;
+      STORE_FREEZERS.forEach(f=>{
+        const sStock=Number(item.freezerStock[f.code]||0);
+        html+=`<button class="qs-fz-btn ${fzCls(f.code)}${targetFreezer===f.code?' on':''}" onclick="qsTargetFreezer('${f.code}')">
+          冷凍庫${fzNum(f.code)}
+          <div class="qs-fz-num">現在 ${sStock}${item.unit}</div>
+        </button>`;
+      });
+      html+=`</div></div>`;
+    }
+    if(curStock!==null)html+=`<div class="qs-stock-hint">出庫元の在庫：${curStock}${item.unit}（最大 ${curStock}${item.unit} まで補充可能）</div>`;
+    // ── Step4: 数量 ──
+    html+=`<div class="qs-sec"><div class="qs-sec-label">補充する数量</div>
+<div class="qs-stepper">
+  <button class="qs-step-btn minus" onclick="qsStep(-1)">－</button>
+  <div class="qs-num-block"><div class="qs-qty-num">${qty}</div><div class="qs-qty-unit">${item.unit}</div></div>
+  <button class="qs-step-btn plus" onclick="qsStep(1)">＋</button>
+</div>
+<div class="qs-presets">
+  <button class="qs-preset" onclick="qsPreset(1)">1</button>
+  <button class="qs-preset" onclick="qsPreset(3)">3</button>
+  <button class="qs-preset" onclick="qsPreset(5)">5</button>
+</div></div></div>`;
+    const isMaeStore=(store==='男マエ食道');
+    const ok=freezerCode&&store&&(isMaeStore||targetFreezer)&&qty>=1;
+    const lbl=ok
+      ?(isMaeStore?`${store}へ　${qty}${item.unit}　補充する`:`${store}　冷凍庫${fzNum(targetFreezer)}へ　${qty}${item.unit}　補充する`)
+      :(!freezerCode?'出庫元の冷凍庫を選んでください':!store?'補充先のお店を選んでください':!targetFreezer&&!isMaeStore?'補充先の冷凍庫（A〜D）を選んでください':'確認してください');
+    html+=`<div class="qs-footer"><button class="qs-exec"${ok?' onclick="execReplenish()"':' disabled'}>${escapeHtml(lbl)}</button>
+<button class="qs-cancel" onclick="closeQs()">キャンセル</button></div>`;
+
+  }else if(mode==='move'){
+    const{fromFreezerCode}=qsState;
+    const fromStock=Number(item.freezerStock[fromFreezerCode]||0);
+    const fCode=code=>String(code).toLowerCase();
+    html=`<div class="qs-drag"><div class="qs-drag-bar"></div></div>
+<div class="qs-head"><p class="qs-title">${escapeHtml(item.name)}　移動</p>
+<p class="qs-sub">移動元冷凍庫の在庫を別の冷凍庫へ移します</p></div>
+<div class="qs-body">
+<div class="qs-sec">
+  <div class="qs-sec-label">移動元</div>
+  <div class="qs-from-chip ${fCode(fromFreezerCode)}">冷凍庫${fzNum(fromFreezerCode)}　${fromStock}${item.unit}</div>
+</div>
+<div class="qs-sec">
+  <div class="qs-sec-label">移動先の冷凍庫を選んでください</div>
+  <div class="qs-fz-grid">`;
+    // 同一グループの冷凍庫のみ選択肢に表示
+    const group=fromFreezerCode.startsWith('S')?STORE_FREEZERS:ROOF_FREEZERS;
+    group.filter(f=>f.code!==fromFreezerCode).forEach(f=>{
+      const q=Number(item.freezerStock[f.code]||0);
+      const vis=getFreezerVisibility(item,f.code);
+      html+=`<button class="qs-fz-btn ${fCode(f.code)}${freezerCode===f.code?' on':''}" onclick="qsMoveTarget('${f.code}')">
+        冷凍庫${fzNum(f.code)}
+        <div class="qs-fz-num">${vis?`現在 ${q}${item.unit}`:'未登録'}</div>
+      </button>`;
+    });
+    html+=`</div></div>
+<div class="qs-sec"><div class="qs-sec-label">移動する数量</div>
+<div class="qs-stepper">
+  <button class="qs-step-btn minus" onclick="qsStep(-1)">－</button>
+  <div class="qs-num-block"><div class="qs-qty-num">${qty}</div><div class="qs-qty-unit">${item.unit}</div></div>
+  <button class="qs-step-btn plus" onclick="qsStep(1)">＋</button>
+</div>
+<div class="qs-presets">
+  <button class="qs-preset" onclick="qsPreset(1)">1</button>
+  <button class="qs-preset" onclick="qsPreset(5)">5</button>
+  <button class="qs-preset" onclick="qsPreset(10)">10</button>
+</div>
+<div class="qs-stock-hint">移動元の在庫：${fromStock}${item.unit}（最大 ${fromStock}${item.unit} まで移動可能）</div>
+</div></div>`;
+    const okMove=freezerCode&&qty>=1;
+    const lblMove=okMove
+      ?`冷凍庫${fzNum(fromFreezerCode)}→${fzNum(freezerCode)}　${qty}${item.unit}　移動する`
+      :'移動先の冷凍庫を選んでください';
+    html+=`<div class="qs-footer"><button class="qs-exec"${okMove?' onclick="execMove()"':' disabled'}>${lblMove}</button>
+<button class="qs-cancel" onclick="closeQs()">キャンセル</button></div>`;
+
+  }else if(mode==='use'){
+    // 店舗冷凍庫 使用シート（お店選択不要・シンプル）
+    const visF=STORE_FREEZERS.filter(f=>getFreezerVisibility(item,f.code)&&Number(item.freezerStock[f.code]||0)>0);
+    const curStock=freezerCode?Number(item.freezerStock[freezerCode]||0):null;
+    html=`<div class="qs-drag"><div class="qs-drag-bar"></div></div>
+<div class="qs-head"><p class="qs-title">${escapeHtml(item.name)}　使用</p>
+<p class="qs-sub">店舗冷凍庫から使用した分を記録します</p></div>
+<div class="qs-body">`;
+    if(visF.length>1){
+      html+=`<div class="qs-sec"><div class="qs-sec-label">どの冷凍庫から使用しますか？</div><div class="qs-chips">`;
+      visF.forEach(f=>{
+        const q=Number(item.freezerStock[f.code]||0);
+        html+=`<button class="qs-chip${freezerCode===f.code?' on':''}" onclick="qsFreezer('${f.code}')">冷凍庫${fzNum(f.code)}<div class="qs-chip-sub">${q}${item.unit}</div></button>`;
+      });
+      html+=`</div></div>`;
+    }else if(visF.length===1){
+      html+=`<div class="qs-stock-hint">使用元：冷凍庫${fzNum(visF[0].code)}（現在 ${Number(item.freezerStock[visF[0].code]||0)}${item.unit}）</div>`;
+    }
+    if(curStock!==null) html+=`<div class="qs-stock-hint">現在の在庫：${curStock}${item.unit}</div>`;
+    html+=`<div class="qs-sec"><div class="qs-sec-label">使用する数量</div>
+<div class="qs-stepper">
+  <button class="qs-step-btn minus" onclick="qsStep(-1)">－</button>
+  <div class="qs-num-block"><div class="qs-qty-num">${qty}</div><div class="qs-qty-unit">${item.unit}</div></div>
+  <button class="qs-step-btn plus" onclick="qsStep(1)">＋</button>
+</div>
+<div class="qs-presets">
+  <button class="qs-preset" onclick="qsPreset(1)">1</button>
+  <button class="qs-preset" onclick="qsPreset(3)">3</button>
+  <button class="qs-preset" onclick="qsPreset(5)">5</button>
+</div></div></div>`;
+    const okUse=freezerCode&&qty>=1;
+    const lblUse=okUse?`冷凍庫${fzNum(freezerCode)}から　${qty}${item.unit}　使用する`:'使用元の冷凍庫を選んでください';
+    html+=`<div class="qs-footer"><button class="qs-exec"${okUse?' onclick="execUse()"':' disabled'}>${lblUse}</button>
+<button class="qs-cancel" onclick="closeQs()">キャンセル</button></div>`;
+  }
+  document.getElementById('qsContent').innerHTML=html;
+}
+
+// 入庫実行
+async function execInbound(){
+  const{itemId,freezerCode,qty}=qsState;
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item||!freezerCode||qty<1)return;
+  if(!confirm(`${item.name}を${freezerName(freezerCode)}へ${qty}${item.unit}入庫します。よろしいですか？`))return;
+  item.freezerStock[freezerCode]=Number(item.freezerStock[freezerCode]||0)+qty;
+  setFreezerVisibility(item,freezerCode,true);
+  item.usageCount=Number(item.usageCount||0)+1;
+  addHistory('入庫',item,qty,'仕入れ',freezerName(freezerCode));
+  if(isCloudReady()){try{await cloudUpsertItem(item);await cloudReplaceFreezerStock(item);await cloudPushLatestHistory(state.history[0]);}catch(err){console.error(err);alert('クラウド保存に失敗: '+(err.message||err));}}
+  closeQs();render();toast('✓ 入庫しました');
+}
+
+// 補充実行
+async function execReplenish(){
+  const{itemId,freezerCode,store,targetFreezer,qty}=qsState;
+  const item=state.items.find(i=>i.id===itemId);
+  const _isMae=(store==='男マエ食道');
+  if(!item||!freezerCode||!store||(!_isMae&&!targetFreezer)||qty<1)return;
+  const cur=Number(item.freezerStock[freezerCode]||0);
+  if(cur<qty){alert(`在庫が不足しています。\n現在の在庫：${cur}${item.unit}`);return;}
+
+  const destLabel=_isMae?store:`${store}　冷凍庫${fzNum(targetFreezer)}`;
+  if(!confirm(`${item.name}を${freezerName(freezerCode)}から${destLabel}へ${qty}${item.unit}補充します。よろしいですか？`))return;
+
+  // 出庫元を減らす
+  item.freezerStock[freezerCode]=cur-qty;
+  // 補充先の店舗冷凍庫（A～D）を増やし、visible=trueに設定（男マエ食道は冷凍庫なし）
+  if(targetFreezer && !_isMae){
+    item.freezerStock[targetFreezer]=(Number(item.freezerStock[targetFreezer]||0))+qty;
+    setFreezerVisibility(item,targetFreezer,true);
+  }
+  // storeMoved に補充記録（神楽坂・深夜食道の場合は両店に記録）
+  if(store==='神楽坂・深夜食道'){
+    item.storeMoved['神楽坂']=(Number(item.storeMoved['神楽坂']||0))+qty;
+    item.storeMoved['深夜食道']=(Number(item.storeMoved['深夜食道']||0))+qty;
+  }else{
+    item.storeMoved[store]=(Number(item.storeMoved[store]||0))+qty;
+  }
+  item.usageCount=Number(item.usageCount||0)+1;
+  addHistory('店舗補充',item,qty,freezerName(freezerCode),destLabel);
+
+  if(isCloudReady()){try{await cloudUpsertItem(item);await cloudReplaceFreezerStock(item);await cloudPushLatestHistory(state.history[0]);}catch(err){console.error(err);alert('クラウド保存に失敗: '+(err.message||err));}}
+  closeQs();render();toast('✓ 補充しました');
+}
+
+// 冷凍庫間移動シートを開く
+function openQuickMove(itemId, fromCode){
+  if(state.user.role==='オーナー'){alert('オーナー権限では在庫操作はできません。');return;}
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item) return;
+  if(Number(item.freezerStock[fromCode]||0)===0){alert('この冷凍庫に在庫がないため移動できません。');return;}
+  qsState={mode:'move',itemId,fromFreezerCode:fromCode,freezerCode:null,store:null,qty:1};
+  renderQs();
+  document.getElementById('qsWrap').classList.add('open');
+}
+// 移動先選択
+function qsMoveTarget(code){qsState.freezerCode=code;renderQs();}
+
+// 移動実行
+async function execMove(){
+  const{itemId,fromFreezerCode,freezerCode,qty}=qsState;
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item||!fromFreezerCode||!freezerCode||qty<1) return;
+  if(fromFreezerCode===freezerCode){alert('移動元と移動先が同じです。');return;}
+  const cur=Number(item.freezerStock[fromFreezerCode]||0);
+  if(cur<qty){alert(`在庫が不足しています。\n現在の在庫：${cur}${item.unit}`);return;}
+  if(!confirm(`${item.name}を${freezerName(fromFreezerCode)}から${freezerName(freezerCode)}へ${qty}${item.unit}移動します。よろしいですか？`)) return;
+  item.freezerStock[fromFreezerCode]=cur-qty;
+  item.freezerStock[freezerCode]=Number(item.freezerStock[freezerCode]||0)+qty;
+  setFreezerVisibility(item,freezerCode,true);
+  item.usageCount=Number(item.usageCount||0)+1;
+  addHistory('冷凍庫移動',item,qty,freezerName(fromFreezerCode),freezerName(freezerCode));
+  if(isCloudReady()){try{await cloudUpsertItem(item);await cloudReplaceFreezerStock(item);await cloudPushLatestHistory(state.history[0]);}catch(err){console.error(err);alert('クラウド保存に失敗: '+(err.message||err));}}
+  closeQs();render();toast('✓ 移動しました');
+}
+
+// ====== 店舗冷凍庫 使用シート ======
+function openQuickUse(itemId, prefillCode=null){
+  if(state.user.role==='オーナー'){alert('オーナー権限では在庫操作はできません。');return;}
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item){alert('商品が見つかりません。');return;}
+  const storeTotal=STORE_FREEZERS.reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
+  if(storeTotal===0){alert('店舗冷凍庫に在庫がありません。');return;}
+  const visF=STORE_FREEZERS.filter(f=>getFreezerVisibility(item,f.code)&&Number(item.freezerStock[f.code]||0)>0);
+  const autoF=visF.length===1?visF[0].code:(prefillCode&&STORE_FREEZERS.some(f=>f.code===prefillCode)&&Number(item.freezerStock[prefillCode]||0)>0?prefillCode:null);
+  qsState={mode:'use',itemId,freezerCode:autoF,store:null,targetFreezer:null,qty:1};
+  renderQs();
+  document.getElementById('qsWrap').classList.add('open');
+}
+
+async function execUse(){
+  const{itemId,freezerCode,qty}=qsState;
+  const item=state.items.find(i=>i.id===itemId);
+  if(!item||!freezerCode||qty<1)return;
+  const cur=Number(item.freezerStock[freezerCode]||0);
+  if(cur<qty){alert(`在庫が不足しています。\n現在の在庫：${cur}${item.unit}`);return;}
+  if(!confirm(`${item.name}を冷凍庫${fzNum(freezerCode)}から${qty}${item.unit}使用します。よろしいですか？`))return;
+  item.freezerStock[freezerCode]=cur-qty;
+  item.usageCount=Number(item.usageCount||0)+1;
+  addHistory('使用',item,qty,freezerName(freezerCode),'使用');
+  if(isCloudReady()){try{await cloudUpsertItem(item);await cloudReplaceFreezerStock(item);await cloudPushLatestHistory(state.history[0]);}catch(err){console.error(err);alert('クラウド保存に失敗: '+(err.message||err));}}
+  closeQs();render();toast('✓ 使用を記録しました');
+}
+
+/* ==== events ==== */
+function switchView(tabId){
+  document.querySelectorAll('.bottom-nav-btn[data-tab]').forEach(x=>x.classList.remove('active'));
+  const activeBtn=document.querySelector('.bottom-nav-btn[data-tab="'+tabId+'"]');
+  if(activeBtn) activeBtn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const view=document.getElementById('view-'+tabId);
+  if(view) view.classList.add('active');
+  if(tabId==='store-freezers') renderStoreFreezer();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('.bottom-nav-btn[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{
+  switchView(btn.dataset.tab);
+}));
+document.getElementById('searchDashboard').addEventListener('change',renderDashboard);
+
+
+document.getElementById('searchFreezer').addEventListener('input',renderFreezers);
+document.getElementById('searchStoreFreezer').addEventListener('input',renderStoreFreezer);
+// 屋上冷凍庫フィルターボタン（view-freezers 内のみ）
+document.querySelectorAll('#fzMainTabs .dash-filter-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#fzMainTabs .dash-filter-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const sub=document.getElementById('fzSubFilter');
+    if(sub) sub.classList.toggle('show', btn.dataset.tab==='detail');
+    renderFreezers();
+  });
+});
+document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderFreezers();
+  });
+});
+// 店舗冷凍庫フィルターボタン（sfFilterRow 内）
+document.querySelectorAll('#sfMainTabs .dash-filter-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#sfMainTabs .dash-filter-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const sub=document.getElementById('sfSubFilter');
+    if(sub) sub.classList.toggle('show', btn.dataset.tab==='detail');
+    renderStoreFreezer();
+  });
+});
+document.querySelectorAll('#sfSubFilter .fz-filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#sfSubFilter .fz-filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    renderStoreFreezer();
+  });
+});
+document.getElementById('historySearch').addEventListener('input',renderHistory);
+document.getElementById('historyType').addEventListener('change',renderHistory);
+document.getElementById('freezerItemMode').addEventListener('change', (e) => {
+  const mode = e.target.value;
+  document.getElementById('existingItemSection').style.display = mode === 'existing' ? '' : 'none';
+  document.getElementById('newItemSection').style.display = mode === 'new' ? '' : 'none';
+});
+document.getElementById('freezerItemTarget').addEventListener('change', (e) => {
+  fillExistingItemOptions(e.target.value);
+});
+document.querySelectorAll('.modal-wrap').forEach(wrap=>wrap.addEventListener('click',e=>{if(e.target===wrap) wrap.classList.remove('open')}));
+
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.item-menu-wrap')) closeAllItemMenus();
+});
+
+render();
+tryAutoConnectSupabase();
+
+// ── 冷凍庫別在庫ポップアップ ──
+function toggleFreezerNavPopup(){
+  const popup=document.getElementById('freezerNavPopup');
+  const btn=document.getElementById('freezerNavBtn');
+  const isOpen=popup.style.display!=='none'&&!popup.classList.contains('hide');
+  if(isOpen){
+    popup.classList.add('hide');
+    setTimeout(()=>{popup.style.display='none';},180);
+    btn.textContent='冷凍庫別在庫へ ▲';
+  }else{
+    popup.style.display='block';
+    popup.classList.remove('hide');
+    btn.textContent='冷凍庫別在庫へ ▼';
+  }
+}
+function goToFreezerTab(tabId){
+  document.getElementById('freezerNavPopup').style.display='none';
+  switchView(tabId);
+}
+// ポップアップ外タップで閉じる
+document.addEventListener('click',function(e){
+  const popup=document.getElementById('freezerNavPopup');
+  const btn=document.getElementById('freezerNavBtn');
+  if(!popup||popup.style.display==='none') return;
+  if(!popup.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){
+    popup.classList.add('hide');
+    setTimeout(()=>{popup.style.display='none';},180);
+    btn.textContent='冷凍庫別在庫へ ▲';
+  }
+});
+</script>
+</body>
+</html>
