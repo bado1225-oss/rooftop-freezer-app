@@ -274,7 +274,8 @@
     /* 冷凍庫フィルターボタン */
     .fz-filter-row{display:flex;gap:8px;flex-wrap:wrap;padding:12px 14px 14px}
     .fz-filter-btn{border:2px solid transparent;border-radius:14px;padding:11px 15px;font-size:14px;font-weight:800;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;background:#f1f5f9;color:#94a3b8;transition:all .15s}
-    .fz-filter-btn.fz-all.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .fz-filter-btn.fz-all{background:#f1f5f9;color:var(--primary);border-color:#cbd5e1}
+    .fz-filter-btn.fz-all.active{background:var(--primary);color:#fff;border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.18)}
     .fz-filter-btn.fz-f1{background:var(--fz1-bg);color:var(--fz1-text);border-color:#bfdbfe}
     .fz-filter-btn.fz-f2{background:var(--fz2-bg);color:var(--fz2-text);border-color:#a7f3d0}
     .fz-filter-btn.fz-f3{background:var(--fz3-bg);color:var(--fz3-text);border-color:#fdba74}
@@ -292,6 +293,11 @@
     .dash-filter-tab.active{background:var(--primary);color:#fff}
     .dash-sub-filter{padding:10px 14px 12px;display:none}
     .dash-sub-filter.show{display:flex}
+    /* 🔍 アイコン付き商品検索セレクト */
+    .search-wrap{position:relative;flex:1;min-width:180px}
+    .search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:16px;line-height:1}
+    .search-select{width:100%;padding:10px 34px 10px 36px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;font-weight:700;color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2394a3b8' d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 12px center}
+    .search-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.15)}
     /* 冷凍庫グループ 区切り強化 */
     .freezer-group{border:2px solid var(--line)!important;border-radius:20px!important;padding:0!important;margin-top:22px!important;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07)!important}
     .freezer-group.f1{border-color:#93c5fd!important}
@@ -414,16 +420,16 @@
   <section class="view active" id="view-freezers">
     <div class="card">
       <div class="toolbar">
-        <select id="searchFreezer" style="flex:1;min-width:180px" autocomplete="off">
-          <option value="">すべての商品</option>
-        </select>
+        <div class="search-wrap">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <select id="searchFreezer" class="search-select" autocomplete="off">
+            <option value="">すべての商品</option>
+          </select>
+        </div>
       </div>
-      <div class="dash-filter-tabs" id="fzMainTabs">
-        <button class="dash-filter-tab active" data-tab="all">すべて</button>
-        <button class="dash-filter-tab" data-tab="detail">冷凍庫別</button>
-      </div>
-      <div class="fz-filter-row dash-sub-filter" id="fzSubFilter">
-        <button class="fz-filter-btn fz-f1 active" data-filter="F1">No.1</button>
+      <div class="fz-filter-row" id="fzSubFilter">
+        <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
+        <button class="fz-filter-btn fz-f1" data-filter="F1">No.1</button>
         <button class="fz-filter-btn fz-f2" data-filter="F2">No.2</button>
         <button class="fz-filter-btn fz-f3" data-filter="F3">No.3</button>
         <button class="fz-filter-btn fz-f4" data-filter="F4">No.4</button>
@@ -436,16 +442,16 @@
   <section class="view" id="view-store-freezers">
     <div class="card">
       <div class="toolbar">
-        <select id="searchStoreFreezer" style="flex:1;min-width:180px" autocomplete="off">
-          <option value="">すべての商品</option>
-        </select>
+        <div class="search-wrap">
+          <span class="search-icon" aria-hidden="true">🔍</span>
+          <select id="searchStoreFreezer" class="search-select" autocomplete="off">
+            <option value="">すべての商品</option>
+          </select>
+        </div>
       </div>
-      <div class="dash-filter-tabs" id="sfMainTabs">
-        <button class="dash-filter-tab active" data-tab="all">すべて</button>
-        <button class="dash-filter-tab" data-tab="detail">冷凍庫別</button>
-      </div>
-      <div class="fz-filter-row dash-sub-filter" id="sfSubFilter">
-        <button class="fz-filter-btn fz-f1 active" data-filter="S1">A</button>
+      <div class="fz-filter-row" id="sfSubFilter">
+        <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
+        <button class="fz-filter-btn fz-f1" data-filter="S1">A</button>
         <button class="fz-filter-btn fz-f2" data-filter="S2">B</button>
         <button class="fz-filter-btn fz-f3" data-filter="S3">C</button>
         <button class="fz-filter-btn fz-f4" data-filter="S4">D</button>
@@ -1185,9 +1191,9 @@ function renderDashboard(){
     : `<div class="empty">店舗冷凍庫に登録された商品がありません。</div>`;
 }
 function renderFreezers(){
-  // 屋上冷凍庫（F1-F4）専用
-  const _fzTab=document.querySelector('#fzMainTabs .dash-filter-tab.active')?.dataset?.tab||'all';
-  const activeBtn=_fzTab==='detail'?document.querySelector('#fzSubFilter .fz-filter-btn.active'):null;
+  // 屋上冷凍庫（F1-F4 + アパート）専用
+  // サブフィルター直下で「すべて / No.1〜No.4 / アパート」を1段で切替
+  const activeBtn=document.querySelector('#fzSubFilter .fz-filter-btn.active');
   const freezer=activeBtn?.dataset?.filter||'all';
   const q=document.getElementById('searchFreezer')?.value?.trim().toLowerCase()||'';
 
@@ -1257,8 +1263,8 @@ onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button
 
 // 店舗冷凍個別ビュー（S1-S4）
 function renderStoreFreezer(){
-  const _sfTab=document.querySelector('#sfMainTabs .dash-filter-tab.active')?.dataset?.tab||'all';
-  const activeBtn=_sfTab==='detail'?document.querySelector('#sfSubFilter .fz-filter-btn.active'):null;
+  // サブフィルター直下で「すべて / A / B / C / D / -60度」を1段で切替
+  const activeBtn=document.querySelector('#sfSubFilter .fz-filter-btn.active');
   const freezer=activeBtn?.dataset?.filter||'all';
   const q=document.getElementById('searchStoreFreezer')?.value?.trim().toLowerCase()||'';
 
@@ -2623,16 +2629,7 @@ document.getElementById('searchDashboard').addEventListener('change',renderDashb
 
 document.getElementById('searchFreezer').addEventListener('change',renderFreezers);
 document.getElementById('searchStoreFreezer').addEventListener('change',renderStoreFreezer);
-// 屋上冷凍庫フィルターボタン（view-freezers 内のみ）
-document.querySelectorAll('#fzMainTabs .dash-filter-tab').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('#fzMainTabs .dash-filter-tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const sub=document.getElementById('fzSubFilter');
-    if(sub) sub.classList.toggle('show', btn.dataset.tab==='detail');
-    renderFreezers();
-  });
-});
+// 屋上冷凍庫サブフィルター（すべて / No.1〜No.4 / アパート）
 document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(b=>b.classList.remove('active'));
@@ -2640,16 +2637,7 @@ document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(btn=>{
     renderFreezers();
   });
 });
-// 店舗冷凍庫フィルターボタン（sfFilterRow 内）
-document.querySelectorAll('#sfMainTabs .dash-filter-tab').forEach(btn=>{
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('#sfMainTabs .dash-filter-tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const sub=document.getElementById('sfSubFilter');
-    if(sub) sub.classList.toggle('show', btn.dataset.tab==='detail');
-    renderStoreFreezer();
-  });
-});
+// 店舗冷凍庫サブフィルター（すべて / A〜D / -60度）
 document.querySelectorAll('#sfSubFilter .fz-filter-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('#sfSubFilter .fz-filter-btn').forEach(b=>b.classList.remove('active'));
