@@ -25,9 +25,26 @@
       --shadow:0 10px 30px rgba(0,0,0,.08); --radius:18px;
     }
     *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;background:var(--bg);color:var(--text)}
-    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px 110px}
-    .header{position:sticky;top:0;z-index:50;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -16px 16px;padding:14px 16px}
+    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px 32px}
+    .header{position:sticky;top:0;z-index:50;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -16px 12px;padding:14px 16px}
     .header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+    /* zaiko-app 互換のヘッダー */
+    .header-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .header-title-wrap{flex:1;min-width:0}
+    .header-sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .header-actions{display:flex;gap:8px;flex-shrink:0}
+    .header-icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .header-icon-btn:hover,.header-icon-btn:active{background:var(--bg);border-color:var(--primary)}
+    .header-icon-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+    /* メインのセグメントタブ（屋上／店舗） */
+    .main-segment-tabs{display:flex;gap:8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px;margin:0 0 16px;box-shadow:var(--shadow)}
+    .main-segment-btn{flex:1;border:none;background:transparent;border-radius:10px;padding:12px 8px;font-size:15px;font-weight:800;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .main-segment-btn .seg-icon{font-size:18px;line-height:1}
+    .main-segment-btn.active{background:var(--primary);color:#fff;box-shadow:0 4px 10px rgba(29,78,216,.25)}
+    .main-segment-btn.active.store{background:var(--warn);box-shadow:0 4px 10px rgba(217,119,6,.25)}
+    /* 右下の新規追加 FAB */
+    .fab-add{position:fixed;right:20px;bottom:max(env(safe-area-inset-bottom),20px);width:58px;height:58px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:28px;font-weight:900;box-shadow:0 8px 24px rgba(29,78,216,.4);cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background .15s}
+    .fab-add:hover,.fab-add:active{background:var(--primary2);transform:scale(1.05)}
     .title{font-size:24px;font-weight:800;margin:0} .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
     .role-chip{padding:10px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);font-size:12px;font-weight:700}
     .grid{display:grid;gap:14px} .grid.kpis{grid-template-columns:repeat(4,1fr)}
@@ -39,11 +56,7 @@
     .tabs{display:none}
     .tab{display:none}
     .actions{padding:0 !important}
-    .bottom-nav{display:flex;gap:0;padding:6px 0 max(env(safe-area-inset-bottom),8px);border-top:1px solid var(--line)}
-    .bottom-nav-btn{flex:1;border:none;background:transparent;padding:6px 2px 4px;font-size:11px;font-weight:800;color:#94a3b8;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:color .15s}
-    .bottom-nav-btn.active{color:var(--primary)}
-    .bottom-nav-btn .nav-icon{font-size:22px;line-height:1}
-    .bottom-nav-btn.action-btn{color:#374151}
+    /* 旧ボトムナビは廃止（セグメントタブ＋FABに移行） */
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;padding:14px} .toolbar input,.toolbar select,.toolbar textarea{border:1px solid var(--line);border-radius:12px;padding:12px 13px;background:#fff;min-height:44px}
     .toolbar input{flex:1;min-width:220px} .toolbar select{min-width:180px}
     .section-title{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 16px 8px;font-size:14px;font-weight:800}
@@ -315,25 +328,33 @@
     @media (max-width:700px){.mc-total-num{font-size:46px}.mc-act-btn{font-size:15px;padding:13px 14px}}
     .roof-more-btn{width:100%;border:1px solid var(--line);border-radius:14px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;background:#fff;color:var(--primary);margin-top:0;-webkit-tap-highlight-color:transparent}
     .roof-more-btn.expanded{color:var(--muted)}
-    #freezerNavPopup{transition:opacity .18s,transform .18s}
-    #freezerNavPopup.hide{opacity:0;pointer-events:none;transform:translateX(-50%) translateY(8px)}
+    /* 旧・冷凍庫別ポップアップCSSは廃止 */
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app">
   <div class="header">
-    <div class="header-row">
-      <div>
-        <h1 class="title" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="cursor:pointer">冷凍在庫一元管理</h1>
-
+    <div class="header-top">
+      <div class="header-title-wrap">
+        <h1 class="title" onclick="switchView('freezers')" style="cursor:pointer;margin:0;font-size:22px;font-weight:800">冷凍在庫一元管理</h1>
+        <div class="header-sub" id="userChip">利用者: 管理者</div>
       </div>
-      <div class="role-chip" id="userChip">利用者: 管理者</div>
+      <div class="header-actions">
+        <button class="header-icon-btn" id="headerBtnHistory" onclick="switchView('history')" aria-label="履歴" title="履歴">🕘</button>
+        <button class="header-icon-btn" id="headerBtnSettings" onclick="switchView('settings')" aria-label="設定" title="設定">⚙️</button>
+      </div>
     </div>
   </div>
 
+  <!-- メインのセグメントタブ（屋上／店舗） -->
+  <div class="main-segment-tabs" id="mainSegmentTabs">
+    <button class="main-segment-btn active" data-tab="freezers" onclick="switchView('freezers')"><span class="seg-icon">🏠</span>屋上</button>
+    <button class="main-segment-btn store" data-tab="store-freezers" onclick="switchView('store-freezers')"><span class="seg-icon">🏪</span>店舗</button>
+  </div>
 
-  <section class="view active" id="view-dashboard">
+
+  <section class="view" id="view-dashboard">
     <div class="card">
       <div class="toolbar">
         <select id="searchDashboard" style="flex:1;min-width:180px">
@@ -362,7 +383,7 @@
     </div>
   </section>
 
-  <section class="view" id="view-freezers">
+  <section class="view active" id="view-freezers">
     <div class="card">
       <div class="toolbar">
         <input type="search" id="searchFreezer" placeholder="商品名で検索">
@@ -482,22 +503,8 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
   </section>
 </div>
 
-<!-- 冷凍庫選択ポップアップ -->
-<div id="freezerNavPopup" style="display:none;position:fixed;bottom:90px;left:50%;transform:translateX(-50%);z-index:70;width:calc(100% - 32px);max-width:940px">
-  <div style="background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:0 -4px 20px rgba(0,0,0,.12);padding:14px;display:flex;gap:10px">
-    <button class="primary" style="flex:1;font-size:16px;font-weight:800;border-radius:14px;padding:16px 10px" onclick="goToFreezerTab('freezers')">🏠 屋上冷凍庫</button>
-    <button class="primary" style="flex:1;font-size:16px;font-weight:800;border-radius:14px;padding:16px 10px;background:var(--warn);border:none" onclick="goToFreezerTab('store-freezers')">🏪 店舗冷凍庫</button>
-  </div>
-</div>
-<div class="actions">
-  <div class="bottom-nav">
-    <button class="bottom-nav-btn active" data-tab="dashboard"><span class="nav-icon">🏠</span>ホーム</button>
-    <button class="bottom-nav-btn action-btn" id="freezerNavBtn" onclick="toggleFreezerNavPopup()"><span class="nav-icon">❄️</span>冷凍庫別</button>
-    <button class="bottom-nav-btn action-btn" onclick="openItemModal()"><span class="nav-icon">➕</span>新規追加</button>
-    <button class="bottom-nav-btn" data-tab="history"><span class="nav-icon">📋</span>履歴</button>
-    <button class="bottom-nav-btn" data-tab="settings"><span class="nav-icon">⚙️</span>設定</button>
-  </div>
-</div>
+<!-- 右下フローティング「新規追加」ボタン -->
+<button class="fab-add" onclick="openItemModal()" aria-label="新規追加" title="新規品目を追加">＋</button>
 
 <div class="modal-wrap" id="itemModalWrap"><div class="modal">
   <h3 id="itemModalTitle">商品を編集</h3>
@@ -2404,18 +2411,35 @@ async function execUse(){
 
 /* ==== events ==== */
 function switchView(tabId){
-  document.querySelectorAll('.bottom-nav-btn[data-tab]').forEach(x=>x.classList.remove('active'));
-  const activeBtn=document.querySelector('.bottom-nav-btn[data-tab="'+tabId+'"]');
-  if(activeBtn) activeBtn.classList.add('active');
+  // セグメントタブ（屋上/店舗）の active 状態
+  document.querySelectorAll('.main-segment-btn').forEach(x=>x.classList.remove('active'));
+  const segBtn=document.querySelector('.main-segment-btn[data-tab="'+tabId+'"]');
+  if(segBtn) segBtn.classList.add('active');
+
+  // 履歴/設定のヘッダーアイコンの active 状態
+  const headerHistory=document.getElementById('headerBtnHistory');
+  const headerSettings=document.getElementById('headerBtnSettings');
+  if(headerHistory) headerHistory.classList.toggle('active', tabId==='history');
+  if(headerSettings) headerSettings.classList.toggle('active', tabId==='settings');
+
+  // 履歴/設定/不足アラート表示時はセグメントタブを非表示（zaiko-app風）
+  const tabsEl=document.getElementById('mainSegmentTabs');
+  if(tabsEl){
+    const hideSegments=(tabId==='history'||tabId==='settings'||tabId==='alerts'||tabId==='dashboard');
+    tabsEl.style.display = hideSegments ? 'none' : '';
+  }
+
+  // ビュー切替
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   const view=document.getElementById('view-'+tabId);
   if(view) view.classList.add('active');
+
+  // 必要なビューを再描画
+  if(tabId==='freezers') renderFreezers();
   if(tabId==='store-freezers') renderStoreFreezer();
+  if(tabId==='history') renderHistory();
   window.scrollTo({top:0,behavior:'smooth'});
 }
-document.querySelectorAll('.bottom-nav-btn[data-tab]').forEach(btn=>btn.addEventListener('click',()=>{
-  switchView(btn.dataset.tab);
-}));
 document.getElementById('searchDashboard').addEventListener('change',renderDashboard);
 
 
@@ -2472,38 +2496,13 @@ document.addEventListener('click', (e) => {
 });
 
 render();
+// 初期表示は屋上セグメントをアクティブに
+switchView('freezers');
 tryAutoConnectSupabase();
 
-// ── 冷凍庫別在庫ポップアップ ──
-function toggleFreezerNavPopup(){
-  const popup=document.getElementById('freezerNavPopup');
-  const btn=document.getElementById('freezerNavBtn');
-  const isOpen=popup.style.display!=='none'&&!popup.classList.contains('hide');
-  if(isOpen){
-    popup.classList.add('hide');
-    setTimeout(()=>{popup.style.display='none';},180);
-    btn.textContent='冷凍庫別在庫へ ▲';
-  }else{
-    popup.style.display='block';
-    popup.classList.remove('hide');
-    btn.textContent='冷凍庫別在庫へ ▼';
-  }
-}
-function goToFreezerTab(tabId){
-  document.getElementById('freezerNavPopup').style.display='none';
-  switchView(tabId);
-}
-// ポップアップ外タップで閉じる
-document.addEventListener('click',function(e){
-  const popup=document.getElementById('freezerNavPopup');
-  const btn=document.getElementById('freezerNavBtn');
-  if(!popup||popup.style.display==='none') return;
-  if(!popup.contains(e.target)&&e.target!==btn&&!btn.contains(e.target)){
-    popup.classList.add('hide');
-    setTimeout(()=>{popup.style.display='none';},180);
-    btn.textContent='冷凍庫別在庫へ ▲';
-  }
-});
+// （旧・冷凍庫別在庫ポップアップ関連は廃止。セグメントタブで直接切替え）
+// 既存コードが goToFreezerTab を呼んでも安全なよう switchView にブリッジ。
+function goToFreezerTab(tabId){ switchView(tabId); }
 </script>
 </body>
 </html>
