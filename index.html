@@ -314,9 +314,10 @@
     .dash-filter-tab.active{background:var(--primary);color:#fff}
     .dash-sub-filter{padding:10px 14px 12px;display:none}
     .dash-sub-filter.show{display:flex}
-    /* 商品絞り込みセレクト */
-    .search-select{flex:1;min-width:180px;padding:12px 38px 12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;font-weight:700;color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2394a3b8' d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 14px center;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
-    .search-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.15)}
+    /* 商品絞り込みセレクト（中央寄せ・薄グレー） */
+    .search-select{flex:1;min-width:180px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;background:#f1f5f9;font-size:14px;font-weight:700;color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;text-align:center;text-align-last:center;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+    .search-select option{text-align:left}
+    .search-select:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(29,78,216,.15)}
     /* 冷凍庫グループ 区切り強化 */
     .freezer-group{border:2px solid var(--line)!important;border-radius:20px!important;padding:0!important;margin-top:22px!important;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07)!important}
     .freezer-group.f1{border-color:#93c5fd!important}
@@ -411,7 +412,7 @@
     <div class="card">
       <div class="toolbar">
         <select id="searchDashboard" style="flex:1;min-width:180px">
-          <option value="">絞り込み</option>
+          <option value="">商品名検索　▼</option>
         </select>
 
       </div>
@@ -440,7 +441,7 @@
     <div class="card">
       <div class="toolbar">
         <select id="searchFreezer" class="search-select" autocomplete="off">
-          <option value="">絞り込み</option>
+          <option value="">商品名検索　▼</option>
         </select>
       </div>
       <div class="fz-filter-row" id="fzSubFilter">
@@ -459,7 +460,7 @@
     <div class="card">
       <div class="toolbar">
         <select id="searchStoreFreezer" class="search-select" autocomplete="off">
-          <option value="">絞り込み</option>
+          <option value="">商品名検索　▼</option>
         </select>
       </div>
       <div class="fz-filter-row" id="sfSubFilter">
@@ -1163,7 +1164,7 @@ function updateSearchDropdown(){
         .filter(i => fzSet.some(f => getFreezerVisibility(i, f.code) === true))
         .map(i => i.name)
     )].sort((a,b)=>a.localeCompare(b,'ja'));
-    sel.innerHTML = '<option value="">絞り込み</option>' +
+    sel.innerHTML = '<option value="">商品名検索　▼</option>' +
       names.map(n=>`<option value="${escapeHtml(n)}" ${n===current?'selected':''}>${escapeHtml(n)}</option>`).join('');
   };
   // ダッシュボード（両グループ）、屋上ビュー、店舗ビュー
