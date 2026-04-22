@@ -59,6 +59,20 @@
     .kpi-card.kpi-ok     .kpi-num{color:#86efac}
     .kpi-sub{font-size:11px;color:#cbd5e1;line-height:1.5}
     .kpi-warn{display:inline-block;margin-top:4px;padding:2px 8px;background:rgba(253,224,71,.2);border:1px solid rgba(253,224,71,.4);border-radius:999px;font-size:10px;font-weight:800;color:#fde047}
+    /* KPIカードのアクティブ（絞り込み中）表示 */
+    .kpi-card.is-active{background:rgba(255,255,255,.24);border-color:#fff;box-shadow:inset 0 0 0 2px #fff}
+    /* 絞り込み中バナー */
+    .dashboard-filter-banner{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;margin:10px 14px 4px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;font-size:13px;font-weight:700;color:var(--primary)}
+    .dashboard-filter-banner .ban-clear{border:1px solid var(--primary);background:#fff;color:var(--primary);font-size:12px;font-weight:800;border-radius:999px;padding:6px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .dashboard-filter-banner .ban-clear:hover,.dashboard-filter-banner .ban-clear:active{background:var(--primary);color:#fff}
+    /* 確認済みチェックボックス */
+    .confirm-check{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;width:28px;height:28px;-webkit-tap-highlight-color:transparent}
+    .confirm-check input{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;margin:0}
+    .confirm-check-box{display:block;width:22px;height:22px;border:2px solid #cbd5e1;border-radius:6px;background:#fff;transition:background .15s,border-color .15s}
+    .confirm-check input:checked+.confirm-check-box{background:#16a34a;border-color:#16a34a;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3 8l3 3 7-7'/></svg>");background-repeat:no-repeat;background-position:center}
+    .freezer-item-row.is-confirmed{background:#f8fafc;opacity:.78}
+    .freezer-item-row.is-confirmed .freezer-item-name{color:#64748b;text-decoration:line-through}
+    .confirm-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:800}
     @media (max-width:480px){.kpi-num{font-size:28px}.kpi-label{font-size:11px}.kpi-sub{font-size:10px}}
     /* 右下の新規追加 FAB */
     .fab-add{position:fixed;right:20px;bottom:max(env(safe-area-inset-bottom),20px);width:58px;height:58px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:28px;font-weight:900;box-shadow:0 8px 24px rgba(29,78,216,.4);cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background .15s}
@@ -725,6 +739,8 @@ const initialState={user:{name:'松浦',role:'管理者'},items:[
 })),history:[]};
 
 let state=loadState(),editingItemId=null,moveMode='toStore',prefillItemId=null,prefillFreezerCode=null,currentFreezerContext=null;
+// ダッシュボードKPIからのフィルター: null | 'order'（屋上で不足）| 'refill'（店舗で不足）
+let dashboardFilter=null;
 let supabaseClient=null,currentAuthUser=null,cloudEnabled=false;
 // クラウドスキーマに min_store/max_store カラムが存在するかどうか
 // checkSchemaVersion で更新。初期値true(通常は存在する前提)、未追加と判明したらfalseに。
@@ -761,6 +777,8 @@ function normalizeState(input){
       preferredStores: item.preferredStores || [],
       usageCount: Number(item.usageCount || 0),
       storeMoved: item.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
+      confirmed: !!item.confirmed,
+      confirmedAt: item.confirmedAt || null,
       // グループ別在庫上下限（未設定の場合は共通 min/max を引き継ぐ）
       minRoof:   item.minRoof   != null ? Number(item.minRoof)   : Number(item.min   || 0),
       maxRoof:   item.maxRoof   != null ? Number(item.maxRoof)   : Number(item.max   || 0),
@@ -1004,13 +1022,13 @@ function renderDashboardHero(){
   const warnRefillChip = warnRefill>0 ? `<div class="kpi-warn">⚠ 注意 ${warnRefill}件</div>` : '';
   const warnOrderChip  = warnOrder >0 ? `<div class="kpi-warn">⚠ 注意 ${warnOrder}件</div>`  : '';
   kpisEl.innerHTML = `
-    <button class="kpi-card kpi-refill" type="button" onclick="switchView('store-freezers')">
+    <button class="kpi-card kpi-refill ${dashboardFilter==='refill'?'is-active':''}" type="button" onclick="applyDashboardFilter('refill')">
       <div class="kpi-label">補充必要</div>
       <div class="kpi-num">${needRefill}</div>
       <div class="kpi-sub">店舗側の不足</div>
       ${warnRefillChip}
     </button>
-    <button class="kpi-card kpi-order" type="button" onclick="switchView('freezers')">
+    <button class="kpi-card kpi-order ${dashboardFilter==='order'?'is-active':''}" type="button" onclick="applyDashboardFilter('order')">
       <div class="kpi-label">発注必要</div>
       <div class="kpi-num">${needOrder}</div>
       <div class="kpi-sub">屋上側の不足</div>
@@ -1196,9 +1214,18 @@ function renderFreezers(){
   const activeBtn=document.querySelector('#fzSubFilter .fz-filter-btn.active');
   const freezer=activeBtn?.dataset?.filter||'all';
   const q=document.getElementById('searchFreezer')?.value?.trim().toLowerCase()||'';
+  // ダッシュボード「発注必要」が押されている場合は 屋上側の不足のみ表示
+  const onlyLow = dashboardFilter === 'order';
+
+  // 絞り込みバナー
+  const listEl=document.getElementById('freezerList');
+  const banner = onlyLow
+    ? `<div class="dashboard-filter-banner"><span>📌 発注必要（屋上側の不足）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
+    : '';
 
   const freezerGroups = ROOF_FREEZERS.filter(f=>freezer==='all' || freezer===f.code).map(f=>{
-    const rows = getUnifiedRowsForFreezer(f.code, q);
+    let rows = getUnifiedRowsForFreezer(f.code, q);
+    if(onlyLow) rows = rows.filter(row => groupStatusOf(row.item, ROOF_FREEZERS) === 'low');
 
     const totalKinds = rows.length;
     const totalQty = rows.reduce((a,b)=>a+b.qty,0);
@@ -1217,9 +1244,14 @@ function renderFreezers(){
         ? '<span class="status high">商品全体で過剰</span>'
         : '<span class="status ok">商品全体で適正</span>';
       const zeroNote = zeroOut ? '<span class="zero-note">0（在庫なし）</span>' : '';
-      return `<div class="freezer-item-row ${zeroOut ? 'out-zero' : ''}">
+      const confirmed = !!item.confirmed;
+      return `<div class="freezer-item-row ${zeroOut ? 'out-zero' : ''} ${confirmed ? 'is-confirmed' : ''}">
         <div class="freezer-item-top">
-          <div>
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+            <label class="confirm-check" title="確認済みにする">
+              <input type="checkbox" ${confirmed?'checked':''} onchange="toggleItemConfirmed('${item.id}', this.checked)">
+              <span class="confirm-check-box"></span>
+            </label>
             <div class="freezer-item-name">${escapeHtml(item.name)}</div>
           </div>
           <div style="text-align:right">
@@ -1228,11 +1260,11 @@ function renderFreezers(){
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}${confirmed?'<span class="confirm-chip">✓ 確認済み</span>':''}</div>
           <div class="item-menu-wrap">
             <button class="item-menu-btn" type="button"
 onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
-            
+
           </div>
         </div>
         <div class="freezer-item-actions">
@@ -1258,7 +1290,8 @@ onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button
 
   const fcEl=document.getElementById('freezerCount');
   if(fcEl) fcEl.textContent=`${freezerGroups.length}基準`;
-  document.getElementById('freezerList').innerHTML=freezerGroups.join('') || `<div class="empty">該当する在庫はありません。</div>`;
+  const groupsHtml = freezerGroups.join('') || `<div class="empty">${onlyLow?'発注必要な商品はありません。':'該当する在庫はありません。'}</div>`;
+  document.getElementById('freezerList').innerHTML = banner + groupsHtml;
 }
 
 // 店舗冷凍個別ビュー（S1-S4）
@@ -1267,9 +1300,15 @@ function renderStoreFreezer(){
   const activeBtn=document.querySelector('#sfSubFilter .fz-filter-btn.active');
   const freezer=activeBtn?.dataset?.filter||'all';
   const q=document.getElementById('searchStoreFreezer')?.value?.trim().toLowerCase()||'';
+  // ダッシュボード「補充必要」が押されている場合は 店舗側の不足のみ表示
+  const onlyLow = dashboardFilter === 'refill';
+  const banner = onlyLow
+    ? `<div class="dashboard-filter-banner"><span>📌 補充必要（店舗側の不足）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
+    : '';
 
   const groups=STORE_FREEZERS.filter(f=>freezer==='all'||freezer===f.code).map(f=>{
-    const rows=getUnifiedRowsForFreezer(f.code,q);
+    let rows=getUnifiedRowsForFreezer(f.code,q);
+    if(onlyLow) rows = rows.filter(row => groupStatusOf(row.item, STORE_FREEZERS) === 'low');
     const body=rows.length?rows.map(row=>{
       const item=row.item, qty=row.qty;
       const status=groupStatusOf(item,STORE_FREEZERS);
@@ -1280,16 +1319,23 @@ function renderStoreFreezer(){
         :status==='warn'?'<span class="status warn">⚠ 注意が必要（最低在庫に接近）</span>'
         :status==='high'?'<span class="status high">商品全体で過剰</span>'
         :'<span class="status ok">商品全体で適正</span>';
-      return `<div class="freezer-item-row ${zeroOut?'out-zero':''}">
+      const confirmed = !!item.confirmed;
+      return `<div class="freezer-item-row ${zeroOut?'out-zero':''} ${confirmed?'is-confirmed':''}">
         <div class="freezer-item-top">
-          <div><div class="freezer-item-name">${escapeHtml(item.name)}</div></div>
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+            <label class="confirm-check" title="確認済みにする">
+              <input type="checkbox" ${confirmed?'checked':''} onchange="toggleItemConfirmed('${item.id}', this.checked)">
+              <span class="confirm-check-box"></span>
+            </label>
+            <div class="freezer-item-name">${escapeHtml(item.name)}</div>
+          </div>
           <div style="text-align:right">
             <div class="freezer-item-qty ${fzCls(f.code)} ${zeroOut?'zero':''}">${qty}</div>
             <div class="mini-note">${item.unit}</div>
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${confirmed?'<span class="confirm-chip">✓ 確認済み</span>':''}</div>
           <button class="item-menu-btn" type="button" onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
         </div>
         <div class="freezer-item-actions">
@@ -1310,7 +1356,8 @@ function renderStoreFreezer(){
       </div>
     </div>`;
   });
-  document.getElementById('storeFreezerList').innerHTML=groups.join('')||`<div class="empty">該当する在庫はありません。</div>`;
+  const groupsHtmlStore = groups.join('') || `<div class="empty">${onlyLow?'補充必要な商品はありません。':'該当する在庫はありません。'}</div>`;
+  document.getElementById('storeFreezerList').innerHTML = banner + groupsHtmlStore;
 }
 function renderAlerts(){
   // ダッシュボード・KPIと同じ管理対象（visible=true が1つでもある）だけを対象にする
@@ -2594,7 +2641,32 @@ async function execUse(){
 }
 
 /* ==== events ==== */
-function switchView(tabId){
+// ダッシュボードKPIクリック → 対応セグメントに移動し、不足のみフィルター
+// 商品の「確認した」チェックをトグル
+function toggleItemConfirmed(itemId, checked){
+  const item = state.items.find(i => i.id === itemId);
+  if(!item) return;
+  item.confirmed = !!checked;
+  item.confirmedAt = checked ? Date.now() : null;
+  saveState();
+  // 軽量再描画（全体は重いので該当ビューのみ）
+  renderFreezers();
+  renderStoreFreezer();
+}
+
+function applyDashboardFilter(type){
+  dashboardFilter = type;
+  if(type === 'refill')      switchView('store-freezers', /*keepFilter*/true);
+  else if(type === 'order')  switchView('freezers',       /*keepFilter*/true);
+  else { renderDashboardHero(); renderFreezers(); renderStoreFreezer(); }
+}
+function clearDashboardFilter(){
+  dashboardFilter = null;
+  renderDashboardHero();
+  renderFreezers();
+  renderStoreFreezer();
+}
+function switchView(tabId, keepFilter){
   // セグメントタブ（屋上/店舗）の active 状態
   document.querySelectorAll('.main-segment-btn').forEach(x=>x.classList.remove('active'));
   const segBtn=document.querySelector('.main-segment-btn[data-tab="'+tabId+'"]');
@@ -2613,6 +2685,9 @@ function switchView(tabId){
   if(tabsEl) tabsEl.style.display = hideChrome ? 'none' : '';
   if(heroEl) heroEl.style.display = hideChrome ? 'none' : '';
 
+  // KPIカード以外からの切替なら絞り込みを解除
+  if(!keepFilter) dashboardFilter = null;
+
   // ビュー切替
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   const view=document.getElementById('view-'+tabId);
@@ -2622,6 +2697,7 @@ function switchView(tabId){
   if(tabId==='freezers') renderFreezers();
   if(tabId==='store-freezers') renderStoreFreezer();
   if(tabId==='history') renderHistory();
+  renderDashboardHero(); // active状態を反映
   window.scrollTo({top:0,behavior:'smooth'});
 }
 document.getElementById('searchDashboard').addEventListener('change',renderDashboard);
