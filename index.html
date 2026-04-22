@@ -307,10 +307,8 @@
     .dash-filter-tab.active{background:var(--primary);color:#fff}
     .dash-sub-filter{padding:10px 14px 12px;display:none}
     .dash-sub-filter.show{display:flex}
-    /* 🔍 アイコン付き商品検索セレクト */
-    .search-wrap{position:relative;flex:1;min-width:180px}
-    .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:18px;line-height:1;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center}
-    .search-select{width:100%;padding:12px 38px 12px 44px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;font-weight:700;color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2394a3b8' d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 14px center;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
+    /* 商品絞り込みセレクト */
+    .search-select{flex:1;min-width:180px;padding:12px 38px 12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-size:14px;font-weight:700;color:var(--text);appearance:none;-webkit-appearance:none;cursor:pointer;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%2394a3b8' d='M6 8L0 0h12z'/></svg>");background-repeat:no-repeat;background-position:right 14px center;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
     .search-select:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.15)}
     /* 冷凍庫グループ 区切り強化 */
     .freezer-group{border:2px solid var(--line)!important;border-radius:20px!important;padding:0!important;margin-top:22px!important;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.07)!important}
@@ -434,12 +432,9 @@
   <section class="view active" id="view-freezers">
     <div class="card">
       <div class="toolbar">
-        <div class="search-wrap">
-          <span class="search-icon" aria-hidden="true">🔍</span>
-          <select id="searchFreezer" class="search-select" autocomplete="off">
-            <option value="">絞り込み</option>
-          </select>
-        </div>
+        <select id="searchFreezer" class="search-select" autocomplete="off">
+          <option value="">絞り込み</option>
+        </select>
       </div>
       <div class="fz-filter-row" id="fzSubFilter">
         <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
@@ -456,12 +451,9 @@
   <section class="view" id="view-store-freezers">
     <div class="card">
       <div class="toolbar">
-        <div class="search-wrap">
-          <span class="search-icon" aria-hidden="true">🔍</span>
-          <select id="searchStoreFreezer" class="search-select" autocomplete="off">
-            <option value="">絞り込み</option>
-          </select>
-        </div>
+        <select id="searchStoreFreezer" class="search-select" autocomplete="off">
+          <option value="">絞り込み</option>
+        </select>
       </div>
       <div class="fz-filter-row" id="sfSubFilter">
         <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
@@ -753,6 +745,17 @@ function loadState(){
   }catch(e){}
   return normalizeState(JSON.parse(JSON.stringify(initialState)));
 }
+// confirmedAt が今日かどうか判定。日付が変わったら未確認扱い。
+function isConfirmedToday(item){
+  if(!item || !item.confirmed || !item.confirmedAt) return false;
+  const d = new Date(item.confirmedAt);
+  if(isNaN(d.getTime())) return false;
+  const today = new Date();
+  return d.getFullYear()===today.getFullYear()
+      && d.getMonth()===today.getMonth()
+      && d.getDate()===today.getDate();
+}
+
 function normalizeState(input){
   const s = input || {};
   s.user = s.user || {name:'松浦',role:'管理者'};
@@ -772,13 +775,15 @@ function normalizeState(input){
         freezerStock[f.code] = 0;
       }
     });
+    // 確認済みチェックは「その日だけ」有効。日付が変わっていれば自動リセット。
+    const confirmedStillValid = isConfirmedToday(item);
     return {
       ...item,
       preferredStores: item.preferredStores || [],
       usageCount: Number(item.usageCount || 0),
       storeMoved: item.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
-      confirmed: !!item.confirmed,
-      confirmedAt: item.confirmedAt || null,
+      confirmed: confirmedStillValid,
+      confirmedAt: confirmedStillValid ? item.confirmedAt : null,
       // グループ別在庫上下限（未設定の場合は共通 min/max を引き継ぐ）
       minRoof:   item.minRoof   != null ? Number(item.minRoof)   : Number(item.min   || 0),
       maxRoof:   item.maxRoof   != null ? Number(item.maxRoof)   : Number(item.max   || 0),
@@ -1244,11 +1249,11 @@ function renderFreezers(){
         ? '<span class="status high">商品全体で過剰</span>'
         : '<span class="status ok">商品全体で適正</span>';
       const zeroNote = zeroOut ? '<span class="zero-note">0（在庫なし）</span>' : '';
-      const confirmed = !!item.confirmed;
+      const confirmed = isConfirmedToday(item);
       return `<div class="freezer-item-row ${zeroOut ? 'out-zero' : ''} ${confirmed ? 'is-confirmed' : ''}">
         <div class="freezer-item-top">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-            <label class="confirm-check" title="確認済みにする">
+            <label class="confirm-check" title="本日の確認済みにする（日付が変わると自動リセット）">
               <input type="checkbox" ${confirmed?'checked':''} onchange="toggleItemConfirmed('${item.id}', this.checked)">
               <span class="confirm-check-box"></span>
             </label>
@@ -1260,7 +1265,7 @@ function renderFreezers(){
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}${confirmed?'<span class="confirm-chip">✓ 確認済み</span>':''}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}</div>
           <div class="item-menu-wrap">
             <button class="item-menu-btn" type="button"
 onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
@@ -1319,11 +1324,11 @@ function renderStoreFreezer(){
         :status==='warn'?'<span class="status warn">⚠ 注意が必要（最低在庫に接近）</span>'
         :status==='high'?'<span class="status high">商品全体で過剰</span>'
         :'<span class="status ok">商品全体で適正</span>';
-      const confirmed = !!item.confirmed;
+      const confirmed = isConfirmedToday(item);
       return `<div class="freezer-item-row ${zeroOut?'out-zero':''} ${confirmed?'is-confirmed':''}">
         <div class="freezer-item-top">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
-            <label class="confirm-check" title="確認済みにする">
+            <label class="confirm-check" title="本日の確認済みにする（日付が変わると自動リセット）">
               <input type="checkbox" ${confirmed?'checked':''} onchange="toggleItemConfirmed('${item.id}', this.checked)">
               <span class="confirm-check-box"></span>
             </label>
@@ -1335,7 +1340,7 @@ function renderStoreFreezer(){
           </div>
         </div>
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${confirmed?'<span class="confirm-chip">✓ 確認済み</span>':''}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}</div>
           <button class="item-menu-btn" type="button" onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
         </div>
         <div class="freezer-item-actions">
@@ -2741,6 +2746,15 @@ render();
 // 初期表示は屋上セグメントをアクティブに
 switchView('freezers');
 tryAutoConnectSupabase();
+
+// アプリを開いたまま日付をまたいだら、チェックを自動リセットするため再正規化＋再描画
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden){
+    state = normalizeState(state);
+    saveState();
+    rerenderAllViews();
+  }
+});
 
 // （旧・冷凍庫別在庫ポップアップ関連は廃止。セグメントタブで直接切替え）
 // 既存コードが goToFreezerTab を呼んでも安全なよう switchView にブリッジ。
