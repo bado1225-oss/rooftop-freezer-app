@@ -412,7 +412,9 @@
   <section class="view active" id="view-freezers">
     <div class="card">
       <div class="toolbar">
-        <input type="search" id="searchFreezer" placeholder="商品名で検索">
+        <select id="searchFreezer" style="flex:1;min-width:180px" autocomplete="off">
+          <option value="">すべての商品</option>
+        </select>
       </div>
       <div class="dash-filter-tabs" id="fzMainTabs">
         <button class="dash-filter-tab active" data-tab="all">すべて</button>
@@ -432,7 +434,9 @@
   <section class="view" id="view-store-freezers">
     <div class="card">
       <div class="toolbar">
-        <input type="search" id="searchStoreFreezer" placeholder="商品名で検索">
+        <select id="searchStoreFreezer" style="flex:1;min-width:180px" autocomplete="off">
+          <option value="">すべての商品</option>
+        </select>
       </div>
       <div class="dash-filter-tabs" id="sfMainTabs">
         <button class="dash-filter-tab active" data-tab="all">すべて</button>
@@ -1072,16 +1076,22 @@ function toggleRoofMore(){
 
 // 商品名プルダウンを登録済み商品で更新する
 function updateSearchDropdown(){
-  const sel = document.getElementById('searchDashboard');
-  if(!sel) return;
-  const current = sel.value;
-  const names = [...new Set(
-    buildUnifiedItems(state.items)
-      .filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true))
-      .map(i=>i.name)
-  )].sort((a,b)=>a.localeCompare(b,'ja'));
-  sel.innerHTML = '<option value="">すべての商品</option>' +
-    names.map(n=>`<option value="${escapeHtml(n)}" ${n===current?'selected':''}>${escapeHtml(n)}</option>`).join('');
+  const fillSelect = (selectId, fzSet) => {
+    const sel = document.getElementById(selectId);
+    if(!sel) return;
+    const current = sel.value;
+    const names = [...new Set(
+      buildUnifiedItems(state.items)
+        .filter(i => fzSet.some(f => getFreezerVisibility(i, f.code) === true))
+        .map(i => i.name)
+    )].sort((a,b)=>a.localeCompare(b,'ja'));
+    sel.innerHTML = '<option value="">すべての商品</option>' +
+      names.map(n=>`<option value="${escapeHtml(n)}" ${n===current?'selected':''}>${escapeHtml(n)}</option>`).join('');
+  };
+  // ダッシュボード（両グループ）、屋上ビュー、店舗ビュー
+  fillSelect('searchDashboard',    FREEZERS);
+  fillSelect('searchFreezer',      ROOF_FREEZERS);
+  fillSelect('searchStoreFreezer', STORE_FREEZERS);
 }
 
 function renderDashboard(){
@@ -2535,8 +2545,8 @@ function switchView(tabId){
 document.getElementById('searchDashboard').addEventListener('change',renderDashboard);
 
 
-document.getElementById('searchFreezer').addEventListener('input',renderFreezers);
-document.getElementById('searchStoreFreezer').addEventListener('input',renderStoreFreezer);
+document.getElementById('searchFreezer').addEventListener('change',renderFreezers);
+document.getElementById('searchStoreFreezer').addEventListener('change',renderStoreFreezer);
 // 屋上冷凍庫フィルターボタン（view-freezers 内のみ）
 document.querySelectorAll('#fzMainTabs .dash-filter-tab').forEach(btn=>{
   btn.addEventListener('click',()=>{
