@@ -58,6 +58,7 @@
     .kpi-card.kpi-order  .kpi-num{color:#fcd34d}
     .kpi-card.kpi-ok     .kpi-num{color:#86efac}
     .kpi-sub{font-size:11px;color:#cbd5e1;line-height:1.5}
+    .kpi-warn{display:inline-block;margin-top:4px;padding:2px 8px;background:rgba(253,224,71,.2);border:1px solid rgba(253,224,71,.4);border-radius:999px;font-size:10px;font-weight:800;color:#fde047}
     @media (max-width:480px){.kpi-num{font-size:28px}.kpi-label{font-size:11px}.kpi-sub{font-size:10px}}
     /* 右下の新規追加 FAB */
     .fab-add{position:fixed;right:20px;bottom:max(env(safe-area-inset-bottom),20px);width:58px;height:58px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:28px;font-weight:900;box-shadow:0 8px 24px rgba(29,78,216,.4);cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background .15s}
@@ -113,6 +114,7 @@
     .qty-box.f5 .qty-value{color:var(--fz5-text)}
     .status{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:12px;font-weight:800}
     .status.low{background:#fee2e2;color:#991b1b}.status.high{background:#ffedd5;color:#9a3412}.status.ok{background:#dcfce7;color:#166534}
+    .status.warn{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
     .actions{position:fixed;left:0;right:0;bottom:0;z-index:60;background:rgba(246,247,251,.96);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 16px}
     .actions-inner{max-width:980px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap}
     .primary,.secondary,.danger{border:none;border-radius:14px;padding:14px 16px;font-weight:800;cursor:pointer;min-height:48px}
@@ -920,13 +922,25 @@ function getUnifiedRowsForFreezer(freezerCode, searchText=''){
     .sort((a,b) => b.qty - a.qty || a.item.name.localeCompare(b.item.name,'ja'));
 }
 function totalStock(item){return Object.values(item.freezerStock||{}).reduce((a,b)=>a+(Number(b)||0),0)}
+// 最低在庫の「すぐ上」（バッファ内）を判定する閾値
+// 例: min=3 → バッファ=1（max(1, ceil(3*0.2)) = max(1,1) = 1）→ stock 3〜4 は warn
+//     min=10 → バッファ=2 → stock 10〜12 は warn
+//     min=0  → warn なし（最低在庫設定が意味を持たない）
+function warnBuffer(minVal){
+  return Math.max(1, Math.ceil(Number(minVal||0) * 0.2));
+}
+function calcStockStatus(total, minVal, maxVal){
+  const min = Number(minVal||0), max = Number(maxVal||0);
+  if(total < min) return 'low';
+  if(total > max) return 'high';
+  if(min > 0 && (total - min) <= warnBuffer(min)) return 'warn';
+  return 'ok';
+}
 function statusOf(item){
   // visible=true の冷凍庫のみで判定（幽霊在庫を除外）
   const total=FREEZERS.filter(f=>getFreezerVisibility(item,f.code))
     .reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
-  if(total<Number(item.min||0)) return 'low';
-  if(total>Number(item.max||0)) return 'high';
-  return 'ok';
+  return calcStockStatus(total, item.min, item.max);
 }
 function freezerName(code){
   const n=fzNum(code);
@@ -967,27 +981,34 @@ function renderDashboardHero(){
   const stampEl=document.getElementById('heroStamp');
   if(!kpisEl) return;
   const managed = (state.items||[]).filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true));
-  let needOrder=0, needRefill=0, ok=0;
+  let needOrder=0, needRefill=0, warnOrder=0, warnRefill=0, ok=0;
   managed.forEach(item=>{
     const inRoof  = ROOF_FREEZERS.some(f=>getFreezerVisibility(item,f.code));
     const inStore = STORE_FREEZERS.some(f=>getFreezerVisibility(item,f.code));
-    const roofLow  = inRoof  && groupStatusOf(item, ROOF_FREEZERS) === 'low';
-    const storeLow = inStore && groupStatusOf(item, STORE_FREEZERS) === 'low';
-    if(roofLow)  needOrder++;
-    if(storeLow) needRefill++;
-    if(!roofLow && !storeLow) ok++;
+    const roofStatus  = inRoof  ? groupStatusOf(item, ROOF_FREEZERS)  : 'ok';
+    const storeStatus = inStore ? groupStatusOf(item, STORE_FREEZERS) : 'ok';
+    if(roofStatus  === 'low')  needOrder++;
+    if(roofStatus  === 'warn') warnOrder++;
+    if(storeStatus === 'low')  needRefill++;
+    if(storeStatus === 'warn') warnRefill++;
+    if(roofStatus !== 'low' && storeStatus !== 'low' &&
+       roofStatus !== 'warn' && storeStatus !== 'warn') ok++;
   });
   const total = managed.length;
+  const warnRefillChip = warnRefill>0 ? `<div class="kpi-warn">⚠ 注意 ${warnRefill}件</div>` : '';
+  const warnOrderChip  = warnOrder >0 ? `<div class="kpi-warn">⚠ 注意 ${warnOrder}件</div>`  : '';
   kpisEl.innerHTML = `
     <button class="kpi-card kpi-refill" type="button" onclick="switchView('store-freezers')">
       <div class="kpi-label">補充必要</div>
       <div class="kpi-num">${needRefill}</div>
       <div class="kpi-sub">店舗側の不足</div>
+      ${warnRefillChip}
     </button>
     <button class="kpi-card kpi-order" type="button" onclick="switchView('freezers')">
       <div class="kpi-label">発注必要</div>
       <div class="kpi-num">${needOrder}</div>
       <div class="kpi-sub">屋上側の不足</div>
+      ${warnOrderChip}
     </button>
     <div class="kpi-card kpi-ok no-click">
       <div class="kpi-label">正常</div>
@@ -1023,7 +1044,7 @@ function sortItems(items,mode,fzGroup=null){
   if(mode==='name'){
     arr.sort((a,b)=>a.name.localeCompare(b.name,'ja'));
   }else if(mode==='alert'){
-    const rank={out:0,low:1,high:2,ok:3};
+    const rank={out:0,low:1,warn:2,high:3,ok:4};
     const getStatus=fzGroup
       ? item=>{
           const t=groupStock(item,fzGroup);
@@ -1053,6 +1074,8 @@ function itemCard(item, fzGroup=null){
     ?`<span class="status out">在庫切れ</span>`
     :status==='low'
     ?`<span class="status low">不足アラート</span>`
+    :status==='warn'
+    ?`<span class="status warn">⚠ 注意が必要</span>`
     :status==='high'
     ?`<span class="status high">過剰警告</span>`
     :`<span class="status ok">適正在庫</span>`;
@@ -1182,6 +1205,8 @@ function renderFreezers(){
         ? '<span class="status out">在庫切れ</span>'
         : status==='low'
         ? '<span class="status low">商品全体で不足</span>'
+        : status==='warn'
+        ? '<span class="status warn">⚠ 注意が必要（最低在庫に接近）</span>'
         : status==='high'
         ? '<span class="status high">商品全体で過剰</span>'
         : '<span class="status ok">商品全体で適正</span>';
@@ -1246,6 +1271,7 @@ function renderStoreFreezer(){
       const statusHtml=zeroOut
         ?'<span class="status out">在庫切れ</span>'
         :status==='low'?'<span class="status low">商品全体で不足</span>'
+        :status==='warn'?'<span class="status warn">⚠ 注意が必要（最低在庫に接近）</span>'
         :status==='high'?'<span class="status high">商品全体で過剰</span>'
         :'<span class="status ok">商品全体で適正</span>';
       return `<div class="freezer-item-row ${zeroOut?'out-zero':''}">
@@ -2168,9 +2194,7 @@ function groupStatusOf(item,fzSet){
   const maxVal = isRoof  ? Number(item.maxRoof  ?? item.max ?? 0)
                : isStore ? Number(item.maxStore ?? item.max ?? 0)
                : Number(item.max||0);
-  if(t<minVal) return 'low';
-  if(t>maxVal) return 'high';
-  return 'ok';
+  return calcStockStatus(t, minVal, maxVal);
 }
 
 // 状態
