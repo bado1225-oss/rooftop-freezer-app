@@ -70,7 +70,8 @@
     .confirm-check input{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;margin:0}
     .confirm-check-box{display:block;width:22px;height:22px;border:2px solid #cbd5e1;border-radius:6px;background:#fff;transition:background .15s,border-color .15s}
     .confirm-check input:checked+.confirm-check-box{background:#16a34a;border-color:#16a34a;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'><path fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' d='M3 8l3 3 7-7'/></svg>");background-repeat:no-repeat;background-position:center}
-    .freezer-item-row.is-confirmed{background:#f8fafc;opacity:.78}
+    .freezer-item-row.is-confirmed{background:#f8fafc;opacity:.82}
+    .freezer-item-row.is-confirmed .freezer-item-top{background:#f1f5f9}
     .freezer-item-row.is-confirmed .freezer-item-name{color:#64748b;text-decoration:line-through}
     .confirm-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 10px;border-radius:999px;background:#dcfce7;color:#166534;font-size:11px;font-weight:800}
     @media (max-width:480px){.kpi-num{font-size:28px}.kpi-label{font-size:11px}.kpi-sub{font-size:10px}}
@@ -175,17 +176,23 @@
     .freezer-group-sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
     .freezer-summary-actions{display:flex;gap:8px;flex-wrap:wrap}
     .freezer-summary-btn{border:none;border-radius:12px;padding:11px 12px;font-size:13px;font-weight:800;cursor:pointer;min-height:44px;background:#fff}
-    .freezer-items{display:flex;flex-direction:column;gap:10px;margin-top:12px}
-    .freezer-item-row{background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.95);border-radius:14px;padding:12px}
-    .freezer-item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
-    .freezer-item-name{font-size:22px;font-weight:800}
+    .freezer-items{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+    /* 商品カード：1枚1枚を明確に区切る */
+    .freezer-item-row{background:#fff;border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;box-shadow:0 2px 6px rgba(15,23,42,.05);display:flex;flex-direction:column}
+    /* 1段目: 商品名(チェックボックス付き) と 数量 */
+    .freezer-item-top{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 14px 12px;border-bottom:1px solid #eef2f7}
+    .freezer-item-name{font-size:18px;font-weight:800;line-height:1.3;word-break:break-word}
+    /* 2段目: ステータスバッジ + 商品編集 */
+    .freezer-item-meta-row{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 14px;background:#fafbfc;border-bottom:1px solid #eef2f7}
+    .freezer-item-meta-row .item-menu-wrap{margin-left:auto}
     .freezer-item-meta{font-size:12px;color:var(--muted);line-height:1.6;margin-top:4px}
-    .freezer-item-qty{font-size:28px;font-weight:900}
+    .freezer-item-qty{font-size:32px;font-weight:900;line-height:1}
+    .freezer-item-qty-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
     .freezer-item-qty.f1{color:var(--fz1-text)}
     .freezer-item-qty.f2{color:var(--fz2-text)}
     .freezer-item-qty.f3{color:var(--fz3-text)}
     .freezer-item-qty.f4{color:var(--fz4-text)}
-    .freezer-item-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+    .freezer-item-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px 14px}
 .item-menu-wrap{position:relative}
     .item-menu-btn{border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;font-size:18px;font-weight:900;line-height:1;cursor:pointer;min-width:48px;min-height:44px}
     .item-menu-panel{position:absolute;right:0;top:52px;z-index:80;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:8px;min-width:180px;display:none}
@@ -1251,6 +1258,7 @@ function renderFreezers(){
       const zeroNote = zeroOut ? '<span class="zero-note">0（在庫なし）</span>' : '';
       const confirmed = isConfirmedToday(item);
       return `<div class="freezer-item-row ${zeroOut ? 'out-zero' : ''} ${confirmed ? 'is-confirmed' : ''}">
+        <!-- 1段目: 商品名（チェックボックス付き）＋ 数量 -->
         <div class="freezer-item-top">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
             <label class="confirm-check" title="本日の確認済みにする（日付が変わると自動リセット）">
@@ -1259,19 +1267,19 @@ function renderFreezers(){
             </label>
             <div class="freezer-item-name">${escapeHtml(item.name)}</div>
           </div>
-          <div style="text-align:right">
+          <div class="freezer-item-qty-wrap">
             <div class="freezer-item-qty ${String(f.code).toLowerCase()} ${zeroOut ? 'zero' : ''}">${qty}</div>
             <div class="mini-note">${item.unit}</div>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}</div>
+        <!-- 2段目: 状態バッジ＋ 商品編集 -->
+        <div class="freezer-item-meta-row">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${statusHtml}${zeroNote}${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}</div>
           <div class="item-menu-wrap">
-            <button class="item-menu-btn" type="button"
-onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
-
+            <button class="item-menu-btn" type="button" onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
           </div>
         </div>
+        <!-- 3段目: 操作ボタン -->
         <div class="freezer-item-actions">
           <button class="stock-action-btn inbound" onclick="openQuickInbound('${item.id}','${f.code}')">＋ 入庫</button>
           <button class="stock-action-btn refill" onclick="openQuickReplenish('${item.id}','${f.code}')">→ 補充</button>
@@ -1326,6 +1334,7 @@ function renderStoreFreezer(){
         :'<span class="status ok">商品全体で適正</span>';
       const confirmed = isConfirmedToday(item);
       return `<div class="freezer-item-row ${zeroOut?'out-zero':''} ${confirmed?'is-confirmed':''}">
+        <!-- 1段目: 商品名＋数量 -->
         <div class="freezer-item-top">
           <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
             <label class="confirm-check" title="本日の確認済みにする（日付が変わると自動リセット）">
@@ -1334,15 +1343,19 @@ function renderStoreFreezer(){
             </label>
             <div class="freezer-item-name">${escapeHtml(item.name)}</div>
           </div>
-          <div style="text-align:right">
+          <div class="freezer-item-qty-wrap">
             <div class="freezer-item-qty ${fzCls(f.code)} ${zeroOut?'zero':''}">${qty}</div>
             <div class="mini-note">${item.unit}</div>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">${statusHtml}${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}</div>
-          <button class="item-menu-btn" type="button" onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
+        <!-- 2段目: 状態バッジ＋ 商品編集 -->
+        <div class="freezer-item-meta-row">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">${statusHtml}${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}</div>
+          <div class="item-menu-wrap">
+            <button class="item-menu-btn" type="button" onclick="openEditItemFromFreezer('${item.id}','${f.code}')">商品編集</button>
+          </div>
         </div>
+        <!-- 3段目: 操作ボタン -->
         <div class="freezer-item-actions">
           <button class="stock-action-btn inbound" onclick="openQuickInbound('${item.id}','${f.code}')">＋ 入庫</button>
           <button class="stock-action-btn use" onclick="openQuickUse('${item.id}','${f.code}')">→ 使用</button>
