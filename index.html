@@ -679,7 +679,7 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
 </div>
 
 <script>
-const STORAGE_KEY='rooftop_freezer_inventory_v5';
+const STORAGE_KEY='rooftop_freezer_inventory_v6';
 const SUPABASE_STORAGE_KEY='rooftop_supabase_config_v1';
 const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F2',name:'冷凍庫No.2',cls:'b2'},{code:'F3',name:'冷凍庫No.3',cls:'b3'},{code:'F4',name:'冷凍庫No.4',cls:'b4'},{code:'F5',name:'アパート冷凍庫',cls:'b5'}];
 const STORE_FREEZERS=[{code:'S1',name:'冷凍庫A',cls:'b1'},{code:'S2',name:'冷凍庫B',cls:'b2'},{code:'S3',name:'冷凍庫C',cls:'b3'},{code:'S4',name:'冷凍庫D',cls:'b4'},{code:'S5',name:'-60度冷凍庫',cls:'b5'}];
@@ -780,17 +780,26 @@ function deduplicateItems(items){
       seen.set(key, item);
     } else {
       // 後続の同名エントリを最初のエントリに統合
+      // 在庫数は MAX を採用（重複行は同一在庫の二重計上になるため合算しない）
       const primary = seen.get(key);
       FREEZERS.forEach(f => {
-        primary.freezerStock[f.code] = Number(primary.freezerStock?.[f.code] || 0) + Number(item.freezerStock?.[f.code] || 0);
+        const p = Number(primary.freezerStock?.[f.code] || 0);
+        const s = Number(item.freezerStock?.[f.code]   || 0);
+        primary.freezerStock[f.code] = Math.max(p, s);
         if(getFreezerVisibility(item, f.code)) setFreezerVisibility(primary, f.code, true);
       });
-      primary.usageCount  = Number(primary.usageCount  || 0) + Number(item.usageCount  || 0);
-      primary.min         = Math.max(Number(primary.min || 0), Number(item.min || 0));
-      primary.max         = Math.max(Number(primary.max || 0), Number(item.max || 0));
+      // usageCount は合算（履歴カウントのため）
+      primary.usageCount = Number(primary.usageCount || 0) + Number(item.usageCount || 0);
+      // min/max もグループ別含め適切にマージ（primary を優先しつつ欠損を補う）
+      primary.min      = Number(primary.min     ) || Number(item.min     ) || 0;
+      primary.max      = Number(primary.max     ) || Number(item.max     ) || 0;
+      primary.minRoof  = Number(primary.minRoof ?? primary.min  ?? 0);
+      primary.maxRoof  = Number(primary.maxRoof ?? primary.max  ?? 0);
+      primary.minStore = Number(primary.minStore?? primary.min  ?? 0);
+      primary.maxStore = Number(primary.maxStore?? primary.max  ?? 0);
       // preferredStores を和集合でマージ
       primary.preferredStores = [...new Set([...(primary.preferredStores||[]), ...(item.preferredStores||[])])];
-      // storeMoved をマージ
+      // storeMoved をマージ（合算）
       Object.keys(item.storeMoved || {}).forEach(store => {
         primary.storeMoved = primary.storeMoved || {};
         primary.storeMoved[store] = Number(primary.storeMoved[store] || 0) + Number(item.storeMoved[store] || 0);
@@ -876,13 +885,20 @@ function buildUnifiedItems(items){
     }
 
     const merged = map.get(key);
+    // 表示用の統合では在庫数は MAX を採用（合算すると重複行が二重計上されるため）
     FREEZERS.forEach(f => {
-      merged.freezerStock[f.code] = Number(merged.freezerStock?.[f.code] || 0) + Number(item.freezerStock?.[f.code] || 0);
+      const m = Number(merged.freezerStock?.[f.code] || 0);
+      const s = Number(item.freezerStock?.[f.code]   || 0);
+      merged.freezerStock[f.code] = Math.max(m, s);
       setFreezerVisibility(merged, f.code, getFreezerVisibility(merged, f.code) || getFreezerVisibility(item, f.code));
     });
     merged.usageCount = Number(merged.usageCount || 0) + Number(item.usageCount || 0);
-    merged.min = Math.max(Number(merged.min || 0), Number(item.min || 0));
-    merged.max = Math.max(Number(merged.max || 0), Number(item.max || 0));
+    merged.min      = Number(merged.min     ) || Number(item.min     ) || 0;
+    merged.max      = Number(merged.max     ) || Number(item.max     ) || 0;
+    merged.minRoof  = Number(merged.minRoof ?? merged.min  ?? 0);
+    merged.maxRoof  = Number(merged.maxRoof ?? merged.max  ?? 0);
+    merged.minStore = Number(merged.minStore?? merged.min  ?? 0);
+    merged.maxStore = Number(merged.maxStore?? merged.max  ?? 0);
     map.set(key, merged);
   });
   return [...map.values()];
