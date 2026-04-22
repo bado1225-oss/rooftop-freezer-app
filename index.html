@@ -718,6 +718,9 @@ const initialState={user:{name:'松浦',role:'管理者'},items:[
 
 let state=loadState(),editingItemId=null,moveMode='toStore',prefillItemId=null,prefillFreezerCode=null,currentFreezerContext=null;
 let supabaseClient=null,currentAuthUser=null,cloudEnabled=false;
+// クラウドスキーマに min_store/max_store カラムが存在するかどうか
+// checkSchemaVersion で更新。初期値true(通常は存在する前提)、未追加と判明したらfalseに。
+let cloudHasGroupMinMax = true;
 
 function loadState(){
   try{
@@ -1426,14 +1429,23 @@ async function saveItem(){
   const name=document.getElementById('itemName').value.trim(),
         category=document.getElementById('itemCategory').value,
         unit=document.getElementById('itemUnit').value;
-  const min=Number(document.getElementById('itemMin').value||0),
-        max=Number(document.getElementById('itemMax').value||0),
-        minStore=Number(document.getElementById('itemMinStore').value||0),
-        maxStore=Number(document.getElementById('itemMaxStore').value||0),
-        preferredStores=[...document.querySelectorAll('#storeChecks .check.active')].map(el=>el.dataset.store),
+  // 未入力は「上限なし(=9999)」として扱う。空文字や無効値は 0 ではなく 9999 を使い、
+  // 意図せず「最大=0」になって判定で 過剰扱いにならないようにする。
+  const rawMin      = document.getElementById('itemMin').value;
+  const rawMax      = document.getElementById('itemMax').value;
+  const rawMinStore = document.getElementById('itemMinStore').value;
+  const rawMaxStore = document.getElementById('itemMaxStore').value;
+  const min      = rawMin      === '' ? 0    : Number(rawMin);
+  const max      = rawMax      === '' ? 9999 : Number(rawMax);
+  const minStore = rawMinStore === '' ? 0    : Number(rawMinStore);
+  const maxStore = rawMaxStore === '' ? 9999 : Number(rawMaxStore);
+  const preferredStores=[...document.querySelectorAll('#storeChecks .check.active')].map(el=>el.dataset.store),
         selectedFreezers=[...document.querySelectorAll('#freezerChecks .check.active')].map(el=>el.dataset.freezer);
 
   if(!name){alert('商品名を入力してください。'); return}
+  if(!Number.isFinite(min) || !Number.isFinite(max) || !Number.isFinite(minStore) || !Number.isFinite(maxStore)){
+    alert('最低在庫数・最大在庫数は数値で入力してください。'); return;
+  }
   if(max<min){alert('屋上冷凍庫の最大在庫数は最低在庫数以上にしてください。'); return}
   if(maxStore<minStore){alert('店舗冷凍庫の最大在庫数は最低在庫数以上にしてください。'); return}
 
@@ -1738,9 +1750,11 @@ async function checkSchemaVersion(){
     );
     if(missing){
       box.style.display = '';
+      cloudHasGroupMinMax = false;
       toast('⚠️ スキーマ更新が必要です（設定 → 確認）');
     }else{
       box.style.display = 'none';
+      cloudHasGroupMinMax = true;
     }
   }catch(e){
     console.warn('checkSchemaVersion:', e);
@@ -1808,15 +1822,22 @@ async function cloudReplaceAllFromLocal(){
   }
 }
 function cloudItemRow(item){
-  return {
+  // 屋上(minRoof/maxRoof) と 店舗(minStore/maxStore) の2軸を保存。
+  // min_stock/max_stock は互換用に屋上側を入れる（旧スキーマで動作）。
+  const row = {
     id:item.id,name:item.name,category:item.category,unit:item.unit,
-    min_stock:item.min,max_stock:item.max,
-    // min_store / max_store はローカル保存のみ（クラウド同期にはSQLでカラム追加が必要）
-    preferred_stores:item.preferredStores||[],
-    usage_count:item.usageCount||0,
-    is_active:true,
+    min_stock: item.minRoof ?? item.min ?? 0,
+    max_stock: item.maxRoof ?? item.max ?? 0,
+    preferred_stores: item.preferredStores||[],
+    usage_count: item.usageCount||0,
+    is_active: true,
     visible_in_freezers: item.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false]))
   };
+  if(cloudHasGroupMinMax){
+    row.min_store = item.minStore ?? item.min ?? 0;
+    row.max_store = item.maxStore ?? item.max ?? 0;
+  }
+  return row;
 }
 async function cloudUpsertItem(item){
   const {error}=await supabaseClient.from('rooftop_items').upsert(cloudItemRow(item));
@@ -1877,14 +1898,27 @@ async function reloadAllFromSupabase(showToast=true){
 
     const prevStoreMoved=Object.fromEntries(state.items.map(i=>[i.id, i.storeMoved||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}]));
     const prevVisibility=Object.fromEntries(state.items.map(i=>[i.id, i.visibleInFreezers||null]));
-    state.items=(itemsRes.data||[]).map(r=>({
-      id:r.id,name:r.name,category:r.category,unit:r.unit,min:Number(r.min_stock||0),max:Number(r.max_stock||0),
-      preferredStores:Array.isArray(r.preferred_stores)?r.preferred_stores:[], usageCount:Number(r.usage_count||0),
-      freezerStock:stockMap[r.id]||{F1:0,F2:0,F3:0,F4:0},
-      // 優先順位: ① クラウドのvisible_in_freezers ② ローカルのprevVisibility ③ 在庫から推論
-      visibleInFreezers: inferVisibleInFreezers(r.id, stockMap, r.visible_in_freezers || prevVisibility[r.id]),
-      storeMoved:prevStoreMoved[r.id]||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}
-    }));
+    const prevById=Object.fromEntries(state.items.map(i=>[i.id, i]));
+    state.items=(itemsRes.data||[]).map(r=>{
+      const prev = prevById[r.id] || {};
+      // 屋上/店舗 ぞれぞれの min/max を復元。
+      // クラウド側に min_store/max_store 列がある場合はそれを、なければローカルの値、さらに無ければ min_stock にフォールバック。
+      const minRoof  = Number(r.min_stock ?? prev.minRoof ?? 0);
+      const maxRoof  = Number(r.max_stock ?? prev.maxRoof ?? 0);
+      const minStore = Number(r.min_store != null ? r.min_store : (prev.minStore ?? r.min_stock ?? 0));
+      const maxStore = Number(r.max_store != null ? r.max_store : (prev.maxStore ?? r.max_stock ?? 0));
+      return {
+        id:r.id, name:r.name, category:r.category, unit:r.unit,
+        min: minRoof, max: maxRoof,
+        minRoof, maxRoof, minStore, maxStore,
+        preferredStores: Array.isArray(r.preferred_stores)?r.preferred_stores:[],
+        usageCount: Number(r.usage_count||0),
+        freezerStock: stockMap[r.id]||{F1:0,F2:0,F3:0,F4:0},
+        // 優先順位: ① クラウドのvisible_in_freezers ② ローカルのprevVisibility ③ 在庫から推論
+        visibleInFreezers: inferVisibleInFreezers(r.id, stockMap, r.visible_in_freezers || prevVisibility[r.id]),
+        storeMoved: prevStoreMoved[r.id]||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}
+      };
+    });
 
     state.history=(historyRes.data||[]).map(r=>({
       id:r.id,
@@ -1892,6 +1926,8 @@ async function reloadAllFromSupabase(showToast=true){
       user:r.acted_by_name||'未設定', itemId:r.item_id, itemName:r.item_name_snapshot||'不明商品', qty:Number(r.quantity||0), unit:r.unit||'個',
       from:r.from_scope||'', to:r.to_scope||'', time:new Date(r.created_at).getTime()
     }));
+    // minRoof/minStore などの欠損を確実に埋める
+    state = normalizeState(state);
     saveState(); rerenderAllViews();
     updateSyncStatus('接続中: '+(cloudConfig().email||currentAuthUser?.email||'cloud'), true);
     if(showToast) toast('☁ クラウド同期しました');
