@@ -1890,7 +1890,23 @@ function copyMigrationSql(){
 async function tryAutoConnectSupabase(){
   const cfg=cloudConfig(); if(!cfg.url||!cfg.anonKey) return;
   try{
-    supabaseClient=window.supabase.createClient(cfg.url, cfg.anonKey);
+    // クライアントは1度だけ作成（再生成すると authStateChange が複数登録され
+    // セッション復元・トークン自動更新が壊れる）
+    if(!supabaseClient){
+      supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+      });
+      // セッションの状態変化に追随（トークン更新／サインアウト等）
+      supabaseClient.auth.onAuthStateChange((event, session) => {
+        if(event === 'SIGNED_OUT'){
+          currentAuthUser=null; cloudEnabled=false;
+          updateSyncStatus('未接続');
+        }else if(session?.user){
+          currentAuthUser=session.user; cloudEnabled=true;
+          updateSyncStatus('接続中: '+(cfg.email||session.user.email||'logged-in'), true);
+        }
+      });
+    }
     const {data}=await supabaseClient.auth.getSession();
     if(data?.session?.user){
       currentAuthUser=data.session.user; cloudEnabled=true;
@@ -2761,13 +2777,55 @@ render();
 switchView('freezers');
 tryAutoConnectSupabase();
 
+// バックグラウンドから復帰したときの再同期処理
+async function ensureCloudConnectionOnResume(){
+  const cfg = cloudConfig();
+  if(!cfg.url || !cfg.anonKey) return;            // 設定なし → なにもしない
+  try{
+    // 既にクライアントがあればセッションだけ確認
+    if(supabaseClient){
+      const {data, error} = await supabaseClient.auth.getSession();
+      if(!error && data?.session?.user){
+        // セッション健在 → 状態を最新化するだけで OK
+        currentAuthUser = data.session.user;
+        cloudEnabled = true;
+        updateSyncStatus('接続中: '+(cfg.email||currentAuthUser.email||'logged-in'), true);
+        // 念のため最新データを取り直す（軽量）
+        try{ await reloadAllFromSupabase(false); }catch(e){ console.warn('reload after resume failed', e); }
+        return;
+      }
+    }
+    // クライアントなし or セッション切れ → 再接続
+    cloudEnabled = false;
+    currentAuthUser = null;
+    await tryAutoConnectSupabase();
+  }catch(e){
+    console.warn('ensureCloudConnectionOnResume:', e);
+    updateSyncStatus('接続失敗');
+  }
+}
+
 // アプリを開いたまま日付をまたいだら、チェックを自動リセットするため再正規化＋再描画
-document.addEventListener('visibilitychange', () => {
+// 加えてSupabase接続も再確認（バックグラウンド→ホーム画面戻りで切断される問題対策）
+document.addEventListener('visibilitychange', async () => {
   if(!document.hidden){
     state = normalizeState(state);
     saveState();
     rerenderAllViews();
+    await ensureCloudConnectionOnResume();
   }
+});
+
+// PWAの場合 pageshow（bfcache 復帰）でも発火させる
+window.addEventListener('pageshow', async (e) => {
+  if(e.persisted){
+    await ensureCloudConnectionOnResume();
+  }
+});
+
+// オンライン復帰時にも再接続を試行（モバイルで電波が戻った時など）
+window.addEventListener('online', () => {
+  ensureCloudConnectionOnResume();
 });
 
 // （旧・冷凍庫別在庫ポップアップ関連は廃止。セグメントタブで直接切替え）
