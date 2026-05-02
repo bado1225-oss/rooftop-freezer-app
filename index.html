@@ -994,6 +994,25 @@ function cloudConfig(){try{return JSON.parse(localStorage.getItem(SUPABASE_STORA
 function updateSyncStatus(text, connected=false){
   const el=document.getElementById('syncStatus'); if(!el)return;
   el.textContent=text; el.style.background=connected?'#dcfce7':'#f3f4f6'; el.style.color=connected?'#166534':'#374151';
+  // 接続成功時はステータスを永続化（次回ロード時のチラつき防止）
+  if(connected){
+    try{ localStorage.setItem('rooftop_last_sync_status', text); }catch(e){}
+  }
+}
+// プルリフレッシュ等の完全リロード時に「最後に接続できていた状態」を即座に表示
+function restoreLastSyncStatusOptimistic(){
+  try{
+    const cfg = JSON.parse(localStorage.getItem(SUPABASE_STORAGE_KEY)||'{}');
+    if(!cfg.url || !cfg.anonKey) return;          // 設定なしなら復元しない
+    const last = localStorage.getItem('rooftop_last_sync_status');
+    if(!last) return;
+    const el = document.getElementById('syncStatus');
+    if(el){
+      el.textContent = last;
+      el.style.background = '#dcfce7';
+      el.style.color = '#166534';
+    }
+  }catch(e){}
 }
 function openModal(id){document.getElementById(id).classList.add('open')}
 function closeModal(id){document.getElementById(id).classList.remove('open')}
@@ -1887,11 +1906,21 @@ function copyMigrationSql(){
   }
 }
 
+// 自動接続の再試行回数（失敗時にリトライ）
+let _autoConnectAttempts = 0;
+let _autoConnectTimer = null;
 async function tryAutoConnectSupabase(){
   const cfg=cloudConfig(); if(!cfg.url||!cfg.anonKey) return;
   // 設定があるなら、接続中になるまで「再接続中...」と表示しておく
   // （初期DOMの「未接続」をユーザーが見て『同期切れ』と誤解する問題を回避）
-  updateSyncStatus('再接続中...');
+  // ただし、すでに「接続中」表示がある場合（restoreLastSyncStatusOptimistic 等）は
+  // 上書きしない方が UX が良いので、未接続/失敗系の場合のみ更新
+  const curEl = document.getElementById('syncStatus');
+  const curText = curEl ? curEl.textContent : '';
+  if(!curText || curText.startsWith('未接続') || curText.startsWith('接続失敗') || curText.startsWith('同期失敗')){
+    updateSyncStatus('再接続中...');
+  }
+  if(_autoConnectTimer){ clearTimeout(_autoConnectTimer); _autoConnectTimer = null; }
   try{
     // クライアントは1度だけ作成（再生成すると authStateChange が複数登録され
     // セッション復元・トークン自動更新が壊れる）
@@ -1932,7 +1961,20 @@ async function tryAutoConnectSupabase(){
     try{ await reloadAllFromSupabase(false); }catch(e){ console.warn('reloadAllFromSupabase failed:', e); }
     // 上記の付帯処理が失敗しても「接続中」状態は維持する
     updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
-  }catch(err){console.error(err); updateSyncStatus('接続失敗')}
+    _autoConnectAttempts = 0;  // 成功したのでカウンタをリセット
+  }catch(err){
+    console.error('tryAutoConnectSupabase error:', err);
+    _autoConnectAttempts++;
+    if(_autoConnectAttempts <= 5){
+      // すぐに「接続失敗」とは表示せず、バックオフして自動リトライ
+      updateSyncStatus(`再接続中...（${_autoConnectAttempts}/5）`);
+      const delay = Math.min(1500 * _autoConnectAttempts, 8000);
+      _autoConnectTimer = setTimeout(() => tryAutoConnectSupabase(), delay);
+    }else{
+      updateSyncStatus('接続失敗（次回操作時に再試行）');
+      _autoConnectAttempts = 0;  // 次回 visibility/online で再試行できるよう
+    }
+  }
 }
 async function upsertMyProfile(){
   if(!supabaseClient||!currentAuthUser) return;
@@ -2781,6 +2823,9 @@ document.querySelectorAll('.modal-wrap').forEach(wrap=>wrap.addEventListener('cl
 document.addEventListener('click', (e) => {
   if(!e.target.closest('.item-menu-wrap')) closeAllItemMenus();
 });
+
+// 最後に成功した接続ステータスを即座に表示（プルリフレッシュでの「未接続」チラつき対策）
+restoreLastSyncStatusOptimistic();
 
 render();
 // 初期表示は屋上セグメントをアクティブに
