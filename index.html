@@ -1889,6 +1889,9 @@ function copyMigrationSql(){
 
 async function tryAutoConnectSupabase(){
   const cfg=cloudConfig(); if(!cfg.url||!cfg.anonKey) return;
+  // 設定があるなら、接続中になるまで「再接続中...」と表示しておく
+  // （初期DOMの「未接続」をユーザーが見て『同期切れ』と誤解する問題を回避）
+  updateSyncStatus('再接続中...');
   try{
     // クライアントは1度だけ作成（再生成すると authStateChange が複数登録され
     // セッション復元・トークン自動更新が壊れる）
@@ -1907,21 +1910,28 @@ async function tryAutoConnectSupabase(){
         }
       });
     }
+    // 順序を重要視: ① セッション復元 → ② スキーマ確認 → ③ seed/reload
+    // これによりスキーマ未対応の環境でも seed が無駄に失敗しない
     const {data}=await supabaseClient.auth.getSession();
-    if(data?.session?.user){
-      currentAuthUser=data.session.user; cloudEnabled=true;
-      await upsertMyProfile(); await ensureCloudSeed(); await reloadAllFromSupabase(false);
-      await checkSchemaVersion();
-      updateSyncStatus('接続中: '+(cfg.email||currentAuthUser.email||'logged-in'), true); return;
-    }
-    if(cfg.email&&cfg.password){
+    let user = data?.session?.user || null;
+    // セッションが無い & email/password があるならサインイン
+    if(!user && cfg.email && cfg.password){
       const {data:loginData,error:loginError}=await supabaseClient.auth.signInWithPassword({email:cfg.email,password:cfg.password});
       if(loginError) throw loginError;
-      currentAuthUser=loginData.user; cloudEnabled=true;
-      await upsertMyProfile(); await ensureCloudSeed(); await reloadAllFromSupabase(false);
-      await checkSchemaVersion();
-      updateSyncStatus('接続中: '+(cfg.email||currentAuthUser.email||'logged-in'), true);
-    }else updateSyncStatus('設定済み（再ログイン待ち）');
+      user = loginData.user;
+    }
+    if(!user){ updateSyncStatus('設定済み（再ログイン待ち）'); return; }
+
+    currentAuthUser = user;
+    cloudEnabled = true;
+    // 接続フラグを立てた段階でステータスを更新（途中で何か失敗しても接続自体は維持）
+    updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
+    await checkSchemaVersion();              // 先にスキーマ確認（cloudHasGroupMinMax を確定）
+    try{ await upsertMyProfile(); }catch(e){ console.warn('upsertMyProfile failed:', e); }
+    try{ await ensureCloudSeed(); }catch(e){ console.warn('ensureCloudSeed failed:', e); }
+    try{ await reloadAllFromSupabase(false); }catch(e){ console.warn('reloadAllFromSupabase failed:', e); }
+    // 上記の付帯処理が失敗しても「接続中」状態は維持する
+    updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
   }catch(err){console.error(err); updateSyncStatus('接続失敗')}
 }
 async function upsertMyProfile(){
