@@ -1906,44 +1906,23 @@ function copyMigrationSql(){
   }
 }
 
-// 自動接続の再試行回数（失敗時にリトライ）
-let _autoConnectAttempts = 0;
-let _autoConnectTimer = null;
+// zaiko-app と同じシンプルな自動接続（過剰なリトライや復帰処理は削除）
+// Supabase JS の autoRefreshToken / persistSession に任せる
 async function tryAutoConnectSupabase(){
   const cfg=cloudConfig(); if(!cfg.url||!cfg.anonKey) return;
-  // 設定があるなら、接続中になるまで「再接続中...」と表示しておく
-  // （初期DOMの「未接続」をユーザーが見て『同期切れ』と誤解する問題を回避）
-  // ただし、すでに「接続中」表示がある場合（restoreLastSyncStatusOptimistic 等）は
-  // 上書きしない方が UX が良いので、未接続/失敗系の場合のみ更新
+  // 既に「接続中」表示中ならチラつかせない
   const curEl = document.getElementById('syncStatus');
   const curText = curEl ? curEl.textContent : '';
-  if(!curText || curText.startsWith('未接続') || curText.startsWith('接続失敗') || curText.startsWith('同期失敗')){
+  if(!curText || curText.startsWith('未接続') || curText.startsWith('接続失敗')){
     updateSyncStatus('再接続中...');
   }
-  if(_autoConnectTimer){ clearTimeout(_autoConnectTimer); _autoConnectTimer = null; }
   try{
-    // クライアントは1度だけ作成（再生成すると authStateChange が複数登録され
-    // セッション復元・トークン自動更新が壊れる）
+    // クライアントは1度だけ作成
     if(!supabaseClient){
-      supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
-      });
-      // セッションの状態変化に追随（トークン更新／サインアウト等）
-      supabaseClient.auth.onAuthStateChange((event, session) => {
-        if(event === 'SIGNED_OUT'){
-          currentAuthUser=null; cloudEnabled=false;
-          updateSyncStatus('未接続');
-        }else if(session?.user){
-          currentAuthUser=session.user; cloudEnabled=true;
-          updateSyncStatus('接続中: '+(cfg.email||session.user.email||'logged-in'), true);
-        }
-      });
+      supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
     }
-    // 順序を重要視: ① セッション復元 → ② スキーマ確認 → ③ seed/reload
-    // これによりスキーマ未対応の環境でも seed が無駄に失敗しない
     const {data}=await supabaseClient.auth.getSession();
     let user = data?.session?.user || null;
-    // セッションが無い & email/password があるならサインイン
     if(!user && cfg.email && cfg.password){
       const {data:loginData,error:loginError}=await supabaseClient.auth.signInWithPassword({email:cfg.email,password:cfg.password});
       if(loginError) throw loginError;
@@ -1953,27 +1932,19 @@ async function tryAutoConnectSupabase(){
 
     currentAuthUser = user;
     cloudEnabled = true;
-    // 接続フラグを立てた段階でステータスを更新（途中で何か失敗しても接続自体は維持）
     updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
-    await checkSchemaVersion();              // 先にスキーマ確認（cloudHasGroupMinMax を確定）
+    // 付帯処理は失敗しても接続自体は維持
+    try{ await checkSchemaVersion(); }catch(e){ console.warn('checkSchemaVersion failed:', e); }
     try{ await upsertMyProfile(); }catch(e){ console.warn('upsertMyProfile failed:', e); }
     try{ await ensureCloudSeed(); }catch(e){ console.warn('ensureCloudSeed failed:', e); }
     try{ await reloadAllFromSupabase(false); }catch(e){ console.warn('reloadAllFromSupabase failed:', e); }
-    // 上記の付帯処理が失敗しても「接続中」状態は維持する
     updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
-    _autoConnectAttempts = 0;  // 成功したのでカウンタをリセット
   }catch(err){
     console.error('tryAutoConnectSupabase error:', err);
-    _autoConnectAttempts++;
-    if(_autoConnectAttempts <= 5){
-      // すぐに「接続失敗」とは表示せず、バックオフして自動リトライ
-      updateSyncStatus(`再接続中...（${_autoConnectAttempts}/5）`);
-      const delay = Math.min(1500 * _autoConnectAttempts, 8000);
-      _autoConnectTimer = setTimeout(() => tryAutoConnectSupabase(), delay);
-    }else{
-      updateSyncStatus('接続失敗（次回操作時に再試行）');
-      _autoConnectAttempts = 0;  // 次回 visibility/online で再試行できるよう
-    }
+    // 既に「接続中」表示が optimistic で出ているなら維持（ユーザーの誤解を防止）
+    const cur = document.getElementById('syncStatus');
+    const t = cur ? cur.textContent : '';
+    if(!t.startsWith('接続中')) updateSyncStatus('接続失敗');
   }
 }
 async function upsertMyProfile(){
@@ -2832,55 +2803,17 @@ render();
 switchView('freezers');
 tryAutoConnectSupabase();
 
-// バックグラウンドから復帰したときの再同期処理
-async function ensureCloudConnectionOnResume(){
-  const cfg = cloudConfig();
-  if(!cfg.url || !cfg.anonKey) return;            // 設定なし → なにもしない
-  try{
-    // 既にクライアントがあればセッションだけ確認
-    if(supabaseClient){
-      const {data, error} = await supabaseClient.auth.getSession();
-      if(!error && data?.session?.user){
-        // セッション健在 → 状態を最新化するだけで OK
-        currentAuthUser = data.session.user;
-        cloudEnabled = true;
-        updateSyncStatus('接続中: '+(cfg.email||currentAuthUser.email||'logged-in'), true);
-        // 念のため最新データを取り直す（軽量）
-        try{ await reloadAllFromSupabase(false); }catch(e){ console.warn('reload after resume failed', e); }
-        return;
-      }
-    }
-    // クライアントなし or セッション切れ → 再接続
-    cloudEnabled = false;
-    currentAuthUser = null;
-    await tryAutoConnectSupabase();
-  }catch(e){
-    console.warn('ensureCloudConnectionOnResume:', e);
-    updateSyncStatus('接続失敗');
-  }
-}
+// 復帰時はSupabaseには触らない（autoRefreshToken に任せる）
+// ※ 過剰に getSession/signIn を呼ぶと逆に「接続切れ」表示になる原因。
+//   zaiko-app と同様、ページロード時の tryAutoConnectSupabase だけで十分。
 
-// アプリを開いたまま日付をまたいだら、チェックを自動リセットするため再正規化＋再描画
-// 加えてSupabase接続も再確認（バックグラウンド→ホーム画面戻りで切断される問題対策）
-document.addEventListener('visibilitychange', async () => {
+// 日付ローテーション用のみ（チェックボックスのリセット）
+document.addEventListener('visibilitychange', () => {
   if(!document.hidden){
     state = normalizeState(state);
     saveState();
     rerenderAllViews();
-    await ensureCloudConnectionOnResume();
   }
-});
-
-// PWAの場合 pageshow（bfcache 復帰）でも発火させる
-window.addEventListener('pageshow', async (e) => {
-  if(e.persisted){
-    await ensureCloudConnectionOnResume();
-  }
-});
-
-// オンライン復帰時にも再接続を試行（モバイルで電波が戻った時など）
-window.addEventListener('online', () => {
-  ensureCloudConnectionOnResume();
 });
 
 // （旧・冷凍庫別在庫ポップアップ関連は廃止。セグメントタブで直接切替え）
