@@ -209,39 +209,51 @@
     .freezer-add-btn.f3{color:var(--fz3-text);border:1px solid #fdba74}
     .freezer-add-btn.f4{color:var(--fz4-text);border:1px solid #ddd6fe}
 .status.out{background:#111827;color:#fff}
-    /* 統合一覧（場所が一目で分かる）→ 選択で展開 */
-    .item-list-wrap{display:flex;flex-direction:column;gap:10px;padding:12px 14px}
-    .item-overview{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 2px 6px rgba(15,23,42,.05)}
-    .item-overview.is-confirmed{background:#f8fafc;opacity:.85}
-    .item-overview.is-confirmed .ovr-name{color:#64748b;text-decoration:line-through}
-    .item-overview.is-expanded{box-shadow:0 6px 18px rgba(29,78,216,.15);border-color:var(--primary)}
-    .ovr-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .12s}
-    .ovr-head:hover,.ovr-head:active{background:#f8fafc}
-    .ovr-left{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-    .ovr-info{flex:1;min-width:0}
-    .ovr-name{font-size:17px;font-weight:800;line-height:1.3;word-break:break-word}
-    .ovr-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
-    .loc-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid;white-space:nowrap}
+    /* zaico風 商品カード（清潔な白基調・ティール緑アクセント） */
+    :root{--zc-primary:#0bb5a3;--zc-primary-soft:#e6f7f5;--zc-text:#1a2937;--zc-muted:#6b7785;--zc-line:#e6e9ee;--zc-bg:#f5f6f8}
+    .item-list-wrap{display:flex;flex-direction:column;gap:8px;padding:8px 12px 16px}
+    .zc-card{background:#fff;border:1px solid var(--zc-line);border-radius:10px;overflow:hidden;transition:border-color .15s,box-shadow .15s}
+    .zc-card.is-confirmed{background:#fafbfc;opacity:.78}
+    .zc-card.is-confirmed .zc-name{color:var(--zc-muted);text-decoration:line-through}
+    .zc-card.is-expanded{border-color:var(--zc-primary);box-shadow:0 4px 14px rgba(11,181,163,.15)}
+    /* メイン行（常時表示） */
+    .zc-row{display:flex;align-items:center;gap:12px;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .zc-row:hover,.zc-row:active{background:#fafbfc}
+    /* 左：チェックボックス */
+    .zc-row .confirm-check{flex-shrink:0}
+    /* アイコン枠 */
+    .zc-icon{width:48px;height:48px;background:var(--zc-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border:1px solid var(--zc-line)}
+    /* 中央：名前＋場所タグ */
+    .zc-body{flex:1;min-width:0}
+    .zc-name{font-size:16px;font-weight:700;color:var(--zc-text);line-height:1.35;word-break:break-word}
+    .zc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+    .loc-chip{display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;border:1px solid;white-space:nowrap}
     .loc-chip.f1{background:var(--fz1-bg);color:var(--fz1-text);border-color:#bfdbfe}
     .loc-chip.f2{background:var(--fz2-bg);color:var(--fz2-text);border-color:#a7f3d0}
     .loc-chip.f3{background:var(--fz3-bg);color:var(--fz3-text);border-color:#fdba74}
     .loc-chip.f4{background:var(--fz4-bg);color:var(--fz4-text);border-color:#ddd6fe}
     .loc-chip.f5{background:var(--fz5-bg);color:var(--fz5-text);border-color:#fbcfe8}
-    .ovr-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0}
-    .ovr-qty{font-size:28px;font-weight:900;line-height:1;color:var(--primary)}
-    .ovr-unit{font-size:11px;color:var(--muted);font-weight:700}
-    .ovr-status-mini{padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;margin-top:4px}
-    .ovr-status-mini.low{background:#fee2e2;color:#991b1b}
-    .ovr-status-mini.warn{background:#fef3c7;color:#92400e}
-    .ovr-status-mini.high{background:#ffedd5;color:#9a3412}
-    .ovr-status-mini.ok{background:#dcfce7;color:#166534}
-    .ovr-status-mini.out{background:#111827;color:#fff}
-    .ovr-caret{font-size:12px;color:#94a3b8;margin-top:2px;transition:transform .15s}
-    .item-overview.is-expanded .ovr-caret{transform:rotate(180deg)}
-    /* 展開時の詳細部分 */
-    .ovr-detail{border-top:1px solid #eef2f7;background:#fafbfc}
-    .ovr-detail-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;padding:12px 14px;border-bottom:1px solid #eef2f7}
-    .ovr-detail-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px}
+    /* 右：在庫数（zaico風に大きく） */
+    .zc-qty-block{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;text-align:right}
+    .zc-qty-num{font-size:28px;font-weight:800;color:var(--zc-text);line-height:1;font-variant-numeric:tabular-nums}
+    .zc-qty-num.is-low{color:#dc2626}
+    .zc-qty-num.is-warn{color:#d97706}
+    .zc-qty-num.is-high{color:#ea580c}
+    .zc-qty-num.is-out{color:#6b7280}
+    .zc-qty-unit{font-size:11px;color:var(--zc-muted);font-weight:600}
+    .zc-status-dot{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;margin-top:2px}
+    .zc-status-dot.low{background:#fee2e2;color:#b91c1c}
+    .zc-status-dot.warn{background:#fef3c7;color:#92400e}
+    .zc-status-dot.high{background:#ffedd5;color:#9a3412}
+    .zc-status-dot.ok{background:#e6f7f5;color:#0a8579}
+    .zc-status-dot.out{background:#111827;color:#fff}
+    .zc-caret{font-size:11px;color:#9ca3af;margin-left:6px;transition:transform .15s}
+    .zc-card.is-expanded .zc-caret{transform:rotate(180deg)}
+    /* 展開時の詳細 */
+    .zc-detail{border-top:1px solid var(--zc-line);background:#fafbfc;padding:12px 14px}
+    .zc-detail-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .zc-detail-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .zc-detail-actions .stock-action-btn{padding:11px 8px;font-size:13px;border-radius:8px}
     .freezer-item-row.out-zero{opacity:.96;background:#f9fafb;border:1px dashed #cbd5e1}
     .freezer-item-row.out-zero .freezer-item-name{color:#475569}
     .freezer-item-row.out-zero .freezer-item-meta{color:#64748b}
@@ -1350,36 +1362,39 @@ function renderUnifiedItemList(opts){
            <button class="stock-action-btn refill" onclick="openQuickReplenish('${item.id}','${defFreezer}')">→ 補充</button>
            <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 移動</button>`;
       detail = `
-        <div class="ovr-detail">
-          <div class="ovr-detail-meta">
+        <div class="zc-detail">
+          <div class="zc-detail-meta">
             <span class="status ${status}">${statusFull}</span>
             ${confirmed?'<span class="confirm-chip">✓ 本日確認済み</span>':''}
             <button class="item-menu-btn" type="button" onclick="event.stopPropagation();openEditItemFromFreezer('${item.id}','${defFreezer}')">商品編集</button>
           </div>
-          <div class="ovr-detail-actions" onclick="event.stopPropagation()">
+          <div class="zc-detail-actions" onclick="event.stopPropagation()">
             ${actions}
           </div>
         </div>`;
     }
 
-    return `<div class="item-overview ${confirmed?'is-confirmed':''} ${isExpanded?'is-expanded':''}">
-      <div class="ovr-head" onclick="toggleItemExpand('${item.id}')">
-        <div class="ovr-left">
-          <label class="confirm-check" onclick="event.stopPropagation()" title="本日の確認済み">
-            <input type="checkbox" ${confirmed?'checked':''} onchange="toggleItemConfirmed('${item.id}', this.checked)">
-            <span class="confirm-check-box"></span>
-          </label>
-          <div class="ovr-info">
-            <div class="ovr-name">${escapeHtml(item.name)}</div>
-            <div class="ovr-chips">${chips || '<span style="font-size:11px;color:#94a3b8">在庫なし</span>'}</div>
-          </div>
+    // 在庫切れ・不足・注意 で数字色を変える
+    const qtyClass = status==='out'?'is-out':status==='low'?'is-low':status==='warn'?'is-warn':status==='high'?'is-high':'';
+    const iconChar = (kind==='store') ? '🏪' : '❄️';
+
+    return `<div class="zc-card ${confirmed?'is-confirmed':''} ${isExpanded?'is-expanded':''}">
+      <div class="zc-row" onclick="toggleItemExpand('${item.id}')">
+        <label class="confirm-check" onclick="event.stopPropagation()" title="本日の確認済み">
+          <input type="checkbox" ${confirmed?'checked':''} onchange="toggleItemConfirmed('${item.id}', this.checked)">
+          <span class="confirm-check-box"></span>
+        </label>
+        <div class="zc-icon" aria-hidden="true">${iconChar}</div>
+        <div class="zc-body">
+          <div class="zc-name">${escapeHtml(item.name)}</div>
+          <div class="zc-tags">${chips || '<span style="font-size:11px;color:#9ca3af">登録のみ・在庫なし</span>'}</div>
         </div>
-        <div class="ovr-right">
-          <div class="ovr-qty">${total}</div>
-          <div class="ovr-unit">${item.unit}</div>
-          <div class="ovr-status-mini ${status}">${statusLabel}</div>
-          <div class="ovr-caret">▼</div>
+        <div class="zc-qty-block">
+          <div class="zc-qty-num ${qtyClass}">${total}</div>
+          <div class="zc-qty-unit">${item.unit}</div>
+          <span class="zc-status-dot ${status}">${statusLabel}</span>
         </div>
+        <div class="zc-caret">▼</div>
       </div>
       ${detail}
     </div>`;
