@@ -802,6 +802,24 @@ const initialState={user:{name:'松浦',role:'管理者'},items:[
   }
 })),history:[]};
 
+// 商品名→カテゴリの自動マッピング（旧カテゴリからの移行用）
+// ※ loadState→normalizeState→autoCategorizeIfDefault から呼ばれるため、
+//   `let state=loadState()` よりも前に宣言しておく必要がある（temporal dead zone対策）
+const ITEM_TO_CATEGORY = {
+  '旨辛餃子':'餃子・点心', '炭火焼餃子':'餃子・点心', '旨辛餡':'餃子・点心',
+  '牛タン':'肉類', 'しし肉':'肉類', '種鶏':'肉類', '銀皮':'肉類', '豚脂':'肉類',
+  'メヒカリ':'魚類', 'ほっけ':'魚類', 'はまゆう':'魚類',
+  'カレー':'加工食品', 'ひつまぶし':'加工食品', '鶏油':'加工食品', '牛すじ':'加工食品', 'せせり':'加工食品'
+};
+function autoCategorizeIfDefault(item){
+  if(!item || !item.name) return;
+  const known = ITEM_TO_CATEGORY[String(item.name).trim()];
+  // 旧デフォルト『冷凍食材』 or 未設定 のみ自動分類（手動で他カテゴリにした場合は尊重）
+  if(known && (item.category === '冷凍食材' || !item.category)){
+    item.category = known;
+  }
+}
+
 let state=loadState(),editingItemId=null,moveMode='toStore',prefillItemId=null,prefillFreezerCode=null,currentFreezerContext=null;
 // ダッシュボードKPIからのフィルター: null | 'order'（屋上で不足）| 'refill'（店舗で不足）
 let dashboardFilter=null;
@@ -827,22 +845,6 @@ const CATEGORY_STYLES = {
 };
 function categoryStyle(cat){
   return CATEGORY_STYLES[cat] || { bg:'#475569', text:'#fff', icon:'📁' };
-}
-
-// 商品名→カテゴリの自動マッピング（旧カテゴリからの移行用）
-const ITEM_TO_CATEGORY = {
-  '旨辛餃子':'餃子・点心', '炭火焼餃子':'餃子・点心', '旨辛餡':'餃子・点心',
-  '牛タン':'肉類', 'しし肉':'肉類', '種鶏':'肉類', '銀皮':'肉類', '豚脂':'肉類',
-  'メヒカリ':'魚類', 'ほっけ':'魚類', 'はまゆう':'魚類',
-  'カレー':'加工食品', 'ひつまぶし':'加工食品', '鶏油':'加工食品', '牛すじ':'加工食品', 'せせり':'加工食品'
-};
-function autoCategorizeIfDefault(item){
-  if(!item || !item.name) return;
-  const known = ITEM_TO_CATEGORY[String(item.name).trim()];
-  // 旧デフォルト『冷凍食材』 or 未設定 のみ自動分類（手動で他カテゴリにした場合は尊重）
-  if(known && (item.category === '冷凍食材' || !item.category)){
-    item.category = known;
-  }
 }
 
 // ====== 触覚＋音のフィードバック（寒い手・暗い倉庫向け） ======
