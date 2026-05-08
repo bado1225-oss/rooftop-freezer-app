@@ -619,7 +619,7 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
   <div id="itemModalContextBadge" style="margin-bottom:12px"></div>
   <div class="form-grid">
     <div class="field full"><label>商品名</label><input id="itemName"></div>
-    <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
+    <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>餃子・点心</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
     <div class="field"><label>単位</label><select id="itemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
   </div>
 
@@ -699,7 +699,7 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
     <div id="newItemSection" style="display:none;grid-column:1/-1">
       <div class="form-grid">
         <div class="field full"><label>商品名</label><input id="newFreezerItemName"></div>
-        <div class="field"><label>カテゴリ</label><select id="newFreezerItemCategory"><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
+        <div class="field"><label>カテゴリ</label><select id="newFreezerItemCategory"><option>餃子・点心</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
         <div class="field"><label>単位</label><select id="newFreezerItemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
         <div class="field"><label>最低在庫数</label><input id="newFreezerItemMin" type="number" min="0" max="9999"></div>
         <div class="field"><label>最大在庫数</label><input id="newFreezerItemMax" type="number" min="0" max="9999"></div>
@@ -765,22 +765,22 @@ const STORES=['神楽坂','男マエ食道','深夜食道'];
 const ROLES=['管理者','担当者','オーナー'];
 
 const initialState={user:{name:'松浦',role:'管理者'},items:[
-{id:'i1', name:'旨辛餃子',   category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:8, F2:18,F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i2', name:'炭火焼餃子', category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:5, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i3', name:'メヒカリ',   category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:3, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i4', name:'牛すじ',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:3, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i5', name:'種鶏',       category:'冷凍食材',unit:'個',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:10,F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i6', name:'せせり',     category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:1, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i7', name:'ほっけ',     category:'冷凍食材',unit:'枚',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:2, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i8', name:'旨辛餡',     category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:4, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i9', name:'牛タン',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:34,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i10',name:'しし肉',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:13,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i11',name:'カレー',     category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:9, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i12',name:'銀皮',       category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:20,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i13',name:'豚脂',       category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:12,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i14',name:'はまゆう',   category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:11},storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i15',name:'ひつまぶし', category:'冷凍食材',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:9 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
-{id:'i16',name:'鶏油',       category:'冷凍食材',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:5 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}}
+{id:'i1', name:'旨辛餃子',   category:'餃子・点心',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:8, F2:18,F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i2', name:'炭火焼餃子', category:'餃子・点心',unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:5, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i3', name:'メヒカリ',   category:'魚類',     unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:3, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i4', name:'牛すじ',     category:'加工食品', unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:3, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i5', name:'種鶏',       category:'肉類',     unit:'個',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:10,F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i6', name:'せせり',     category:'加工食品', unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:1, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i7', name:'ほっけ',     category:'魚類',     unit:'枚',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:2, F2:0, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i8', name:'旨辛餡',     category:'餃子・点心',unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:4, F3:0, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i9', name:'牛タン',     category:'肉類',     unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:34,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i10',name:'しし肉',     category:'肉類',     unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:13,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i11',name:'カレー',     category:'加工食品', unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:9, F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i12',name:'銀皮',       category:'肉類',     unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:20,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i13',name:'豚脂',       category:'肉類',     unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:12,F4:0 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i14',name:'はまゆう',   category:'魚類',     unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:11},storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i15',name:'ひつまぶし', category:'加工食品', unit:'袋',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:9 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}},
+{id:'i16',name:'鶏油',       category:'加工食品', unit:'kg',min:0,max:9999,preferredStores:[],usageCount:0,freezerStock:{F1:0, F2:0, F3:0, F4:5 },storeMoved:{'神楽坂':0,'男マエ食道':0,'深夜食道':0}}
 ].map(item => ({
   ...item,
   visibleInFreezers: {
@@ -806,13 +806,34 @@ function toggleItemExpand(id){
 }
 // カテゴリごとの色とアイコン（添付スクショの彩りに合わせて）
 const CATEGORY_STYLES = {
-  '冷凍食材': { bg:'#3b82f6', text:'#fff', icon:'❄️' },   // 青
-  '冷凍惣菜': { bg:'#16a34a', text:'#fff', icon:'🍱' },   // 緑
-  '包材':     { bg:'#a16207', text:'#fff', icon:'📦' },   // 茶
-  'その他':   { bg:'#a855f7', text:'#fff', icon:'🏷️' }    // 紫
+  '餃子・点心': { bg:'#dc2626', text:'#fff', icon:'🥟' },   // 赤
+  '肉類':      { bg:'#b45309', text:'#fff', icon:'🥩' },   // 焦茶
+  '魚類':      { bg:'#0284c7', text:'#fff', icon:'🐟' },   // 水色
+  '加工食品':   { bg:'#16a34a', text:'#fff', icon:'🍱' },   // 緑
+  // 旧カテゴリ（互換用）
+  '冷凍食材':   { bg:'#3b82f6', text:'#fff', icon:'❄️' },   // 青
+  '冷凍惣菜':   { bg:'#16a34a', text:'#fff', icon:'🍱' },   // 緑
+  '包材':      { bg:'#a16207', text:'#fff', icon:'📦' },   // 茶
+  'その他':    { bg:'#a855f7', text:'#fff', icon:'🏷️' }    // 紫
 };
 function categoryStyle(cat){
   return CATEGORY_STYLES[cat] || { bg:'#475569', text:'#fff', icon:'📁' };
+}
+
+// 商品名→カテゴリの自動マッピング（旧カテゴリからの移行用）
+const ITEM_TO_CATEGORY = {
+  '旨辛餃子':'餃子・点心', '炭火焼餃子':'餃子・点心', '旨辛餡':'餃子・点心',
+  '牛タン':'肉類', 'しし肉':'肉類', '種鶏':'肉類', '銀皮':'肉類', '豚脂':'肉類',
+  'メヒカリ':'魚類', 'ほっけ':'魚類', 'はまゆう':'魚類',
+  'カレー':'加工食品', 'ひつまぶし':'加工食品', '鶏油':'加工食品', '牛すじ':'加工食品', 'せせり':'加工食品'
+};
+function autoCategorizeIfDefault(item){
+  if(!item || !item.name) return;
+  const known = ITEM_TO_CATEGORY[String(item.name).trim()];
+  // 旧デフォルト『冷凍食材』 or 未設定 のみ自動分類（手動で他カテゴリにした場合は尊重）
+  if(known && (item.category === '冷凍食材' || !item.category)){
+    item.category = known;
+  }
 }
 
 // 操作ボタンのデフォルト冷凍庫（在庫が最も多い可視冷凍庫）
@@ -868,6 +889,8 @@ function normalizeState(input){
         freezerStock[f.code] = 0;
       }
     });
+    // 商品名から自動的に新カテゴリへ移行（既知商品＆旧『冷凍食材』のときのみ）
+    autoCategorizeIfDefault(item);
     // 確認済みチェックは「その日だけ」有効。日付が変わっていれば自動リセット。
     const confirmedStillValid = isConfirmedToday(item);
     return {
@@ -1358,10 +1381,11 @@ function renderUnifiedItemList(opts){
     const c = (it.category || 'その他').trim() || 'その他';
     (byCategory[c] = byCategory[c] || []).push(it);
   }
-  // 順序: 冷凍食材→冷凍惣菜→包材→その他→（その他のもの）
-  const orderedCats = ['冷凍食材','冷凍惣菜','包材','その他']
+  // 表示順
+  const PREFERRED_ORDER = ['餃子・点心','肉類','魚類','加工食品','冷凍食材','冷凍惣菜','包材','その他'];
+  const orderedCats = PREFERRED_ORDER
     .filter(c => byCategory[c])
-    .concat(Object.keys(byCategory).filter(c => !['冷凍食材','冷凍惣菜','包材','その他'].includes(c)));
+    .concat(Object.keys(byCategory).filter(c => !PREFERRED_ORDER.includes(c)));
 
   const renderItemRow = (item) => {
     const total = groupStock(item, fzSet);
@@ -1631,7 +1655,7 @@ function renderInitialStockGrid(values={}){
 // mode: 'roof'=屋上のみ, 'store'=店舗のみ, 'all'=両方（デフォルト）
 function openItemModal(mode='all'){
   editingItemId=null; currentEditFreezerCode=null; document.getElementById('itemModalTitle').textContent='商品を追加';
-  document.getElementById('itemName').value=''; document.getElementById('itemCategory').value='冷凍食材'; document.getElementById('itemUnit').value='個';
+  document.getElementById('itemName').value=''; document.getElementById('itemCategory').value='餃子・点心'; document.getElementById('itemUnit').value='個';
   document.getElementById('itemMin').value=''; document.getElementById('itemMax').value='';
   document.getElementById('itemMinStore').value=''; document.getElementById('itemMaxStore').value='';
   makeStoreChecks([]);
