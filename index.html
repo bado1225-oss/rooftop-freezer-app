@@ -618,6 +618,7 @@
           <div class="modal-actions">
             <button class="primary" id="googleSignInBtn" onclick="signInWithGoogle()" style="display:none">🟦 Googleでログイン</button>
             <button class="secondary" id="googleSignOutBtn" onclick="signOutFromGoogle()" style="display:none">ログアウト</button>
+            <button class="secondary" id="forcePullBtn" onclick="forcePullFromCloud()" style="display:none">🔄 クラウドから取り直す</button>
             <button class="secondary" id="forceResyncBtn" onclick="forcePushAllToCloud()" style="display:none">📤 ローカル→クラウドに上書き</button>
           </div>
         </div>
@@ -2160,10 +2161,13 @@ function isReadOnlyUser(){
 function updateAuthButtonsUI(){
   const inEl  = document.getElementById('googleSignInBtn');
   const outEl = document.getElementById('googleSignOutBtn');
+  const pullEl = document.getElementById('forcePullBtn');
   const pushEl = document.getElementById('forceResyncBtn');
   const signedIn = !!currentAuthUser;
   if(inEl)  inEl.style.display  = signedIn ? 'none' : 'inline-block';
   if(outEl) outEl.style.display = signedIn ? 'inline-block' : 'none';
+  // 「クラウドから取り直す」はサインイン中なら誰でも使える（自分のローカルを破壊しない安全な操作）
+  if(pullEl) pullEl.style.display = signedIn ? 'inline-block' : 'none';
   // 「ローカル→クラウド上書き」はオーナー専用（誤操作で他人の入力を消す危険があるため）
   if(pushEl) pushEl.style.display = (signedIn && isOwnerUser()) ? 'inline-block' : 'none';
 
@@ -2225,6 +2229,61 @@ async function forcePushAllToCloud(){
     console.error('forcePushAllToCloud:', err);
     updateSyncStatus('アップロード失敗');
     alert('アップロードに失敗しました: '+(err.message||err));
+  }
+}
+
+// クラウドの内容で自分の端末を上書きする（ローカル破壊なし・安全）
+// バックグラウンド復帰で同期が切れた、別端末の更新が来ない等のとき使う救援操作。
+async function forcePullFromCloud(){
+  if(!isCloudReady()){ alert('未ログインです。'); return; }
+  try{
+    updateSyncStatus('クラウドから取得中...');
+    const { db, collection, getDocs, query, orderBy, limit } = window.__fb;
+    const itemsCol = collection(db, 'shops', SHOP_ID, 'items');
+    const histCol  = collection(db, 'shops', SHOP_ID, 'history');
+    const itemsSnap = await getDocs(itemsCol);
+    const histSnap  = await getDocs(query(histCol, orderBy('time','desc'), limit(300)));
+
+    // items を置き換え
+    state.items = itemsSnap.docs.map(d => {
+      const r = d.data();
+      return {
+        id: r.id || d.id,
+        name: r.name, category: r.category, unit: r.unit,
+        min: Number(r.min||0), max: Number(r.max||0),
+        minRoof:  Number(r.minRoof  ?? r.min ?? 0),
+        maxRoof:  Number(r.maxRoof  ?? r.max ?? 0),
+        minStore: Number(r.minStore ?? r.min ?? 0),
+        maxStore: Number(r.maxStore ?? r.max ?? 0),
+        preferredStores: Array.isArray(r.preferredStores) ? r.preferredStores : [],
+        usageCount: Number(r.usageCount||0),
+        freezerStock: r.freezerStock || Object.fromEntries(FREEZERS.map(f=>[f.code,0])),
+        visibleInFreezers: r.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
+        storeMoved: r.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
+        confirmed: false, confirmedAt: null
+      };
+    });
+    // history を置き換え
+    state.history = histSnap.docs.map(d => {
+      const r = d.data();
+      return {
+        id: r.id || d.id,
+        type: r.type, user: r.user, itemId: r.itemId, itemName: r.itemName,
+        qty: Number(r.qty||0), unit: r.unit, from: r.from, to: r.to,
+        time: Number(r.time||Date.now())
+      };
+    });
+    state = normalizeState(state);
+    saveState();
+    rerenderAllViews();
+    // 念のため購読も張り直し（バックグラウンド復帰で切れていた場合に備える）
+    try{ startFirestoreSync(); }catch(e){}
+    updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true);
+    toast('☁ クラウドの最新を取得しました ('+state.items.length+'件)');
+  }catch(err){
+    console.error('forcePullFromCloud:', err);
+    updateSyncStatus('取得失敗');
+    alert('クラウドからの取得に失敗しました: '+(err.message||err));
   }
 }
 
@@ -3267,12 +3326,20 @@ tryAutoConnectSupabase();
 // ※ 過剰に getSession/signIn を呼ぶと逆に「接続切れ」表示になる原因。
 //   zaiko-app と同様、ページロード時の tryAutoConnectSupabase だけで十分。
 
-// 日付ローテーション用のみ（チェックボックスのリセット）
+// 日付ローテーション ＋ Firestore 再購読
+// iOS PWA はバックグラウンドにすると JS が停止し、Firestore の購読も切れる。
+// 復帰時に startFirestoreSync を呼んで購読を張り直し、最新差分を取り直す。
 document.addEventListener('visibilitychange', () => {
   if(!document.hidden){
     state = normalizeState(state);
     saveState();
     rerenderAllViews();
+    // サインイン中なら購読をやり直す（同期切れ対策）
+    try{
+      if(isCloudReady()){
+        startFirestoreSync();
+      }
+    }catch(e){ console.warn('re-subscribe on visibility:', e); }
   }
 });
 
