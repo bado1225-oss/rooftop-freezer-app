@@ -439,7 +439,40 @@
     .roof-more-btn.expanded{color:var(--muted)}
     /* 旧・冷凍庫別ポップアップCSSは廃止 */
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Firebase v10 (ESM) — Auth + Firestore のみ -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence }
+      from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+    import { getFirestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, onSnapshot, writeBatch, query, orderBy, limit, serverTimestamp, Timestamp }
+      from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+    // ※ apiKey は公開して問題ない値（Firebaseの設計）。本当の防御は:
+    //    - Authentication の「承認済みドメイン」（rooftop-freezer-app.vercel.app）
+    //    - Firestore セキュリティルール（自分のデータしか触れない）
+    const firebaseConfig = {
+      apiKey: "AIzaSyAJtvCjJ4J5W1-COMWcxsShxf2S0FHQeIc",
+      authDomain: "rooftop-freezer-app.firebaseapp.com",
+      projectId: "rooftop-freezer-app",
+      storageBucket: "rooftop-freezer-app.firebasestorage.app",
+      messagingSenderId: "995847929386",
+      appId: "1:995847929386:web:aabde54795a2e502690d53"
+    };
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+    // PWA終了→再起動でも自動再ログイン
+    try { await setPersistence(auth, browserLocalPersistence); } catch(e) {}
+
+    // 非モジュールスクリプトから使えるよう window に橋渡し
+    window.__fb = {
+      app, auth, db,
+      GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+      collection, doc, getDocs, getDoc, setDoc, deleteDoc, onSnapshot,
+      writeBatch, query, orderBy, limit, serverTimestamp, Timestamp
+    };
+    window.dispatchEvent(new Event('firebase-ready'));
+  </script>
 </head>
 <body>
 <div class="app">
@@ -570,33 +603,17 @@
 
   <section class="view" id="view-settings">
     <div class="card">
-      <div class="section-title"><span>基本設定</span><span class="pill">ローカル保存 + クラウド同期</span></div>
+      <div class="section-title"><span>基本設定</span><span class="pill">ローカル保存 + Firebase同期</span></div>
       <div class="list">
 
         <div class="item ok" style="margin-top:0">
-          <div class="name">Supabase同期設定</div>
-          <div class="meta">クラウド同期の接続状態確認、接続設定、手動同期を行います。</div>
-          <div class="sync-status" id="syncStatus">未接続</div>
+          <div class="name">クラウド同期（Firebase）</div>
+          <div class="meta">Googleアカウントでログインすると、店舗間でリアルタイムに在庫が同期されます。</div>
+          <div class="sync-status" id="syncStatus">未ログイン</div>
           <div class="modal-actions">
-            <button class="secondary" onclick="openCloudModal()">接続設定</button>
-            <button class="secondary" onclick="reloadAllFromSupabase()">今すぐ同期</button>
-          </div>
-        </div>
-
-        <!-- スキーマ移行通知：visible_in_freezers カラムがない場合に自動表示 -->
-        <div class="item high" id="schemaMigrationBox" style="display:none;margin-top:12px">
-          <div class="name" style="color:var(--warn)">⚠️ Supabase スキーマ更新が必要です</div>
-          <div class="meta" style="margin-top:6px">
-            別端末・別ブラウザでも「冷凍庫から外した」状態を正しく同期するために、<br>
-            <strong>rooftop_items</strong> テーブルへのカラム追加が必要です。<br>
-            Supabase ダッシュボード → SQL Editor で以下のSQLを実行してください。
-          </div>
-          <textarea id="migrationSql" readonly style="width:100%;margin-top:10px;padding:10px 12px;border-radius:10px;border:1px solid #fcd34d;background:#fffbeb;font-family:monospace;font-size:12px;line-height:1.6;resize:none;min-height:120px;color:#92400e">ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS visible_in_freezers JSONB DEFAULT '{"F1":false,"F2":false,"F3":false,"F4":false}';
-ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS min_store INTEGER DEFAULT 0;
-ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;</textarea>
-          <div class="modal-actions" style="margin-top:10px">
-            <button class="secondary" onclick="copyMigrationSql()">📋 SQLをコピー</button>
-            <button class="secondary" onclick="checkSchemaVersion().then(()=>toast('✓ チェック完了'))">再チェック</button>
+            <button class="primary" id="googleSignInBtn" onclick="signInWithGoogle()" style="display:none">🟦 Googleでログイン</button>
+            <button class="secondary" id="googleSignOutBtn" onclick="signOutFromGoogle()" style="display:none">ログアウト</button>
+            <button class="secondary" id="forceResyncBtn" onclick="forcePushAllToCloud()" style="display:none">📤 ローカル→クラウドに上書き</button>
           </div>
         </div>
 
@@ -737,25 +754,7 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
   </div>
 </div></div>
 
-<div class="modal-wrap" id="cloudModalWrap"><div class="modal">
-  <h3>Supabase接続設定</h3>
-  <div class="form-grid">
-    <div class="field full"><label>Supabase URL</label><input id="cloudUrl" placeholder="https://xxxxx.supabase.co"></div>
-    <div class="field full"><label>Supabase Anon Key</label><textarea id="cloudAnonKey" rows="4" placeholder="eyJhbGciOi..."></textarea></div>
-    <div class="field"><label>ログインメール</label><input id="cloudEmail" type="email" placeholder="example@example.com"></div>
-    <div class="field"><label>パスワード</label><input id="cloudPassword" type="password" placeholder="password"></div>
-    <div class="field full small">
-      必要テーブル: profiles / rooftop_items / rooftop_freezer_stock / rooftop_history。<br>
-      rooftop_items は id, name, category, unit, min_stock, max_stock, preferred_stores(jsonb), usage_count, is_active。<br>
-      rooftop_freezer_stock は item_id, freezer_code, quantity。<br>
-      rooftop_history は action_type, acted_by_name, item_id, item_name_snapshot, quantity, unit, from_scope, to_scope, created_at。
-    </div>
-  </div>
-  <div class="modal-actions">
-    <button class="secondary" onclick="closeModal('cloudModalWrap')">閉じる</button>
-    <button class="primary" onclick="connectSupabase()">接続する</button>
-  </div>
-</div></div>
+<!-- ※ 旧Supabase接続設定モーダルは Firebase 移行に伴い削除 -->
 
 <div class="toast" id="toast"></div>
 
@@ -766,7 +765,7 @@ ALTER TABLE rooftop_items ADD COLUMN IF NOT EXISTS max_store INTEGER DEFAULT 0;<
 
 <script>
 const STORAGE_KEY='rooftop_freezer_inventory_v6';
-const SUPABASE_STORAGE_KEY='rooftop_supabase_config_v1';
+// 旧 SUPABASE_STORAGE_KEY は Firebase 移行に伴い廃止
 const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F2',name:'冷凍庫No.2',cls:'b2'},{code:'F3',name:'冷凍庫No.3',cls:'b3'},{code:'F4',name:'冷凍庫No.4',cls:'b4'},{code:'F5',name:'アパート冷凍庫',cls:'b5'}];
 const STORE_FREEZERS=[{code:'S1',name:'冷凍庫A',cls:'b1'},{code:'S2',name:'冷凍庫B',cls:'b2'},{code:'S3',name:'冷凍庫C',cls:'b3'},{code:'S4',name:'冷凍庫D',cls:'b4'},{code:'S5',name:'-60度冷凍庫',cls:'b5'}];
 const FREEZERS=[...ROOF_FREEZERS,...STORE_FREEZERS];
@@ -929,10 +928,9 @@ function getDefaultFreezerForItem(item, fzSet){
   }
   return best || fzSet[0]?.code || '';
 }
-let supabaseClient=null,currentAuthUser=null,cloudEnabled=false;
-// クラウドスキーマに min_store/max_store カラムが存在するかどうか
-// checkSchemaVersion で更新。初期値true(通常は存在する前提)、未追加と判明したらfalseに。
-let cloudHasGroupMinMax = true;
+// Firebase: currentAuthUser は Google ログインユーザー（uid を持つ）
+let currentAuthUser=null, cloudEnabled=false;
+let _firestoreUnsub=null; // onSnapshot 解除用
 
 function loadState(){
   try{
@@ -1179,42 +1177,25 @@ function freezerCodeFromName(name){const f=FREEZERS.find(x=>x.name===name||x.cod
 function formatDate(ts){return new Date(ts).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}
 function todayCount(){const today=new Date().toDateString(); return state.history.filter(h=>new Date(h.time).toDateString()===today).length}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function saveCloudConfig(cfg){localStorage.setItem(SUPABASE_STORAGE_KEY, JSON.stringify(cfg))}
-function cloudConfig(){try{return JSON.parse(localStorage.getItem(SUPABASE_STORAGE_KEY)||'{}')}catch(e){return {}}}
 function updateSyncStatus(text, connected=false){
   const el=document.getElementById('syncStatus'); if(!el)return;
   el.textContent=text; el.style.background=connected?'#dcfce7':'#f3f4f6'; el.style.color=connected?'#166534':'#374151';
-  // 接続成功時はステータスを永続化（次回ロード時のチラつき防止）
-  if(connected){
-    try{ localStorage.setItem('rooftop_last_sync_status', text); }catch(e){}
-  }
+  if(connected){ try{ localStorage.setItem('rooftop_last_sync_status', text); }catch(e){} }
 }
 // プルリフレッシュ等の完全リロード時に「最後に接続できていた状態」を即座に表示
 function restoreLastSyncStatusOptimistic(){
   try{
-    const cfg = JSON.parse(localStorage.getItem(SUPABASE_STORAGE_KEY)||'{}');
-    if(!cfg.url || !cfg.anonKey) return;          // 設定なしなら復元しない
     const last = localStorage.getItem('rooftop_last_sync_status');
     if(!last) return;
     const el = document.getElementById('syncStatus');
-    if(el){
-      el.textContent = last;
-      el.style.background = '#dcfce7';
-      el.style.color = '#166534';
-    }
+    if(el){ el.textContent = last; el.style.background = '#dcfce7'; el.style.color = '#166534'; }
   }catch(e){}
 }
-function openModal(id){document.getElementById(id).classList.add('open')}
-function closeModal(id){document.getElementById(id).classList.remove('open')}
-function openCloudModal(){
-  const cfg=cloudConfig();
-  document.getElementById('cloudUrl').value=cfg.url||'';
-  document.getElementById('cloudAnonKey').value=cfg.anonKey||'';
-  document.getElementById('cloudEmail').value=cfg.email||'';
-  document.getElementById('cloudPassword').value=cfg.password||'';
-  openModal('cloudModalWrap');
-}
-function isCloudReady(){return cloudEnabled && !!supabaseClient && !!currentAuthUser}
+function openModal(id){const el=document.getElementById(id); if(el) el.classList.add('open')}
+function closeModal(id){const el=document.getElementById(id); if(el) el.classList.remove('open')}
+// 旧Supabase接続モーダルは廃止。Firebase はGoogleログインボタンで完結。
+function openCloudModal(){ signInWithGoogle(); }
+function isCloudReady(){ return cloudEnabled && !!window.__fb && !!currentAuthUser; }
 
 function rerenderAllViews(){renderUser();renderKpis();renderDashboardHero();renderDashboard();renderFreezers();renderStoreFreezer();renderAlerts();renderHistory();fillItemSelects()}
 
@@ -2078,251 +2059,287 @@ async function resetAll(){
   }
 }
 
-/* ==== Supabase ==== */
-async function connectSupabase(){
-  const url=document.getElementById('cloudUrl').value.trim(), anonKey=document.getElementById('cloudAnonKey').value.trim(),
-        email=document.getElementById('cloudEmail').value.trim(), password=document.getElementById('cloudPassword').value.trim();
-  if(!url||!anonKey||!email||!password){alert('Supabase URL / Anon Key / メール / パスワードを入力してください。'); return}
-  try{
-    supabaseClient=window.supabase.createClient(url, anonKey);
-    const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
-    if(error) throw error;
-    currentAuthUser=data.user; cloudEnabled=true;
-    saveCloudConfig({url,anonKey,email,password});
-    await upsertMyProfile();
-    await ensureCloudSeed();
-    await reloadAllFromSupabase(false);
-    await checkSchemaVersion();  // スキーマ確認
-    updateSyncStatus('接続中: '+email, true);
-    closeModal('cloudModalWrap');
-    toast('☁ Supabase に接続しました');
-  }catch(err){
-    console.error(err); cloudEnabled=false; updateSyncStatus('接続失敗');
-    alert('接続に失敗しました: '+(err.message||err));
-  }
+/* ==== Firebase (Auth + Firestore) ====
+ * データ構造:
+ *   users/{uid}/items/{itemId}     ← 商品（freezerStock を埋め込み）
+ *   users/{uid}/history/{historyId} ← 履歴
+ * 同期: onSnapshot による双方向リアルタイム同期
+ */
+
+// ボタンの表示切り替え（ログイン状態に応じて）
+function updateAuthButtonsUI(){
+  const inEl  = document.getElementById('googleSignInBtn');
+  const outEl = document.getElementById('googleSignOutBtn');
+  const pushEl = document.getElementById('forceResyncBtn');
+  const signedIn = !!currentAuthUser;
+  if(inEl)  inEl.style.display  = signedIn ? 'none' : '';
+  if(outEl) outEl.style.display = signedIn ? '' : 'none';
+  if(pushEl) pushEl.style.display = signedIn ? '' : 'none';
 }
 
-// ---- スキーマバージョンチェック ----
-// visible_in_freezers カラムの有無を確認し、未追加なら設定画面に案内を表示する
-async function checkSchemaVersion(){
-  if(!isCloudReady()) return;
-  const box = document.getElementById('schemaMigrationBox');
-  if(!box) return;
+async function signInWithGoogle(){
+  if(!window.__fb){ alert('Firebaseが読み込まれていません。ページをリロードしてください。'); return; }
   try{
-    // visible_in_freezers と min_store/max_store の両方をチェック
-    const {error} = await supabaseClient.from('rooftop_items').select('visible_in_freezers,min_store,max_store').limit(1);
-    const missing = error && (
-      error.code === '42703' ||
-      String(error.message||'').toLowerCase().includes('visible_in_freezers') ||
-      String(error.message||'').toLowerCase().includes('min_store') ||
-      String(error.message||'').toLowerCase().includes('max_store')
-    );
-    if(missing){
-      box.style.display = '';
-      cloudHasGroupMinMax = false;
-      toast('⚠️ スキーマ更新が必要です（設定 → 確認）');
-    }else{
-      box.style.display = 'none';
-      cloudHasGroupMinMax = true;
-    }
-  }catch(e){
-    console.warn('checkSchemaVersion:', e);
-  }
-}
-
-function copyMigrationSql(){
-  const el = document.getElementById('migrationSql');
-  if(!el) return;
-  if(navigator.clipboard){
-    navigator.clipboard.writeText(el.value)
-      .then(()=>toast('✓ SQLをコピーしました'))
-      .catch(()=>{ el.select(); document.execCommand('copy'); toast('✓ SQLをコピーしました'); });
-  }else{
-    el.select(); document.execCommand('copy'); toast('✓ SQLをコピーしました');
-  }
-}
-
-// zaiko-app と同じシンプルな自動接続（過剰なリトライや復帰処理は削除）
-// Supabase JS の autoRefreshToken / persistSession に任せる
-async function tryAutoConnectSupabase(){
-  const cfg=cloudConfig(); if(!cfg.url||!cfg.anonKey) return;
-  // 既に「接続中」表示中ならチラつかせない
-  const curEl = document.getElementById('syncStatus');
-  const curText = curEl ? curEl.textContent : '';
-  if(!curText || curText.startsWith('未接続') || curText.startsWith('接続失敗')){
-    updateSyncStatus('再接続中...');
-  }
-  try{
-    // クライアントは1度だけ作成
-    if(!supabaseClient){
-      supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
-    }
-    const {data}=await supabaseClient.auth.getSession();
-    let user = data?.session?.user || null;
-    if(!user && cfg.email && cfg.password){
-      const {data:loginData,error:loginError}=await supabaseClient.auth.signInWithPassword({email:cfg.email,password:cfg.password});
-      if(loginError) throw loginError;
-      user = loginData.user;
-    }
-    if(!user){ updateSyncStatus('設定済み（再ログイン待ち）'); return; }
-
-    currentAuthUser = user;
+    const { auth, GoogleAuthProvider, signInWithPopup } = window.__fb;
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    const result = await signInWithPopup(auth, provider);
+    currentAuthUser = result.user;
     cloudEnabled = true;
-    updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
-    // 付帯処理は失敗しても接続自体は維持
-    try{ await checkSchemaVersion(); }catch(e){ console.warn('checkSchemaVersion failed:', e); }
-    try{ await upsertMyProfile(); }catch(e){ console.warn('upsertMyProfile failed:', e); }
-    try{ await ensureCloudSeed(); }catch(e){ console.warn('ensureCloudSeed failed:', e); }
-    try{ await reloadAllFromSupabase(false); }catch(e){ console.warn('reloadAllFromSupabase failed:', e); }
-    updateSyncStatus('接続中: '+(cfg.email||user.email||'logged-in'), true);
+    toast('☁ Google でログインしました: '+(result.user.email||''));
+    // 以降の処理は onAuthStateChanged 側で startFirestoreSync する
   }catch(err){
-    console.error('tryAutoConnectSupabase error:', err);
-    // 既に「接続中」表示が optimistic で出ているなら維持（ユーザーの誤解を防止）
-    const cur = document.getElementById('syncStatus');
-    const t = cur ? cur.textContent : '';
-    if(!t.startsWith('接続中')) updateSyncStatus('接続失敗');
+    console.error('signInWithGoogle:', err);
+    cloudEnabled = false;
+    updateSyncStatus('ログイン失敗');
+    alert('ログインに失敗しました: '+(err.message||err));
   }
 }
-async function upsertMyProfile(){
-  if(!supabaseClient||!currentAuthUser) return;
-  await supabaseClient.from('profiles').upsert({id:currentAuthUser.id, display_name:state.user.name||currentAuthUser.email?.split('@')[0]||'staff'});
-}
-async function ensureCloudSeed(){
-  if(!isCloudReady()) return;
-  const {count,error}=await supabaseClient.from('rooftop_items').select('*',{count:'exact',head:true});
-  if(error) throw error;
-  if((count||0)===0) await cloudReplaceAllFromLocal();
-}
-async function cloudReplaceAllFromLocal(){
-  if(!isCloudReady()) return;
-  const itemIds=state.items.map(i=>i.id);
-  if(itemIds.length){
-    await supabaseClient.from('rooftop_freezer_stock').delete().in('item_id', itemIds);
-    await supabaseClient.from('rooftop_items').upsert(state.items.map(item=>cloudItemRow(item)));
-  }else{
-    await supabaseClient.from('rooftop_freezer_stock').delete().neq('item_id','');
-  }
-  for(const item of state.items){
-    await cloudReplaceFreezerStock(item);
-  }
-  await supabaseClient.from('rooftop_history').delete().gte('created_at','1900-01-01');
-  if(state.history.length){
-    await supabaseClient.from('rooftop_history').insert(state.history.map(h=>cloudHistoryRow(h)));
+
+async function signOutFromGoogle(){
+  if(!window.__fb) return;
+  try{
+    stopFirestoreSync();
+    await window.__fb.signOut(window.__fb.auth);
+    currentAuthUser = null;
+    cloudEnabled = false;
+    updateSyncStatus('未ログイン');
+    updateAuthButtonsUI();
+    try{ localStorage.removeItem('rooftop_last_sync_status'); }catch(e){}
+    toast('ログアウトしました');
+  }catch(err){
+    console.error('signOutFromGoogle:', err);
+    alert('ログアウトに失敗しました: '+(err.message||err));
   }
 }
+
+// ローカルの内容をクラウドに強制上書き（手動再同期ボタン）
+async function forcePushAllToCloud(){
+  if(!isCloudReady()){ alert('未ログインです。'); return; }
+  if(!confirm('現在の端末の在庫データでクラウドを上書きします。よろしいですか？')) return;
+  try{
+    updateSyncStatus('アップロード中...');
+    await cloudReplaceAllFromLocal();
+    updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true);
+    toast('☁ クラウドに上書きしました');
+  }catch(err){
+    console.error('forcePushAllToCloud:', err);
+    updateSyncStatus('アップロード失敗');
+    alert('アップロードに失敗しました: '+(err.message||err));
+  }
+}
+
+// ---- Firestore ドキュメント変換 ----
 function cloudItemRow(item){
-  // 屋上(minRoof/maxRoof) と 店舗(minStore/maxStore) の2軸を保存。
-  // min_stock/max_stock は互換用に屋上側を入れる（旧スキーマで動作）。
-  const row = {
-    id:item.id,name:item.name,category:item.category,unit:item.unit,
-    min_stock: item.minRoof ?? item.min ?? 0,
-    max_stock: item.maxRoof ?? item.max ?? 0,
-    preferred_stores: item.preferredStores||[],
-    usage_count: item.usageCount||0,
-    is_active: true,
-    visible_in_freezers: item.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false]))
+  return {
+    id: item.id,
+    name: String(item.name||''),
+    category: String(item.category||'その他'),
+    unit: String(item.unit||'個'),
+    min: Number(item.min||0), max: Number(item.max||0),
+    minRoof: Number(item.minRoof ?? item.min ?? 0),
+    maxRoof: Number(item.maxRoof ?? item.max ?? 0),
+    minStore: Number(item.minStore ?? item.min ?? 0),
+    maxStore: Number(item.maxStore ?? item.max ?? 0),
+    preferredStores: Array.isArray(item.preferredStores) ? item.preferredStores : [],
+    usageCount: Number(item.usageCount||0),
+    freezerStock: Object.fromEntries(FREEZERS.map(f => [f.code, Number(item.freezerStock?.[f.code]||0)])),
+    visibleInFreezers: item.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
+    storeMoved: item.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
+    isActive: true,
+    updatedAt: window.__fb.serverTimestamp()
   };
-  if(cloudHasGroupMinMax){
-    row.min_store = item.minStore ?? item.min ?? 0;
-    row.max_store = item.maxStore ?? item.max ?? 0;
-  }
-  return row;
-}
-async function cloudUpsertItem(item){
-  const {error}=await supabaseClient.from('rooftop_items').upsert(cloudItemRow(item));
-  if(error) throw error;
-}
-async function cloudReplaceFreezerStock(item){
-  const {error:delError}=await supabaseClient.from('rooftop_freezer_stock').delete().eq('item_id', item.id);
-  if(delError) throw delError;
-  const rows=FREEZERS.map(f=>({item_id:item.id,freezer_code:f.code,quantity:Number(item.freezerStock[f.code]||0)}));
-  const {error:insError}=await supabaseClient.from('rooftop_freezer_stock').insert(rows);
-  if(insError) throw insError;
 }
 function cloudHistoryRow(h){
-  const map={'入庫':'inbound','店舗補充':'to_store','冷凍庫移動':'between_freezers','商品追加':'item_created','冷凍庫へ商品追加':'item_added_to_freezer','冷凍庫から商品削除':'item_removed_from_freezer','商品編集':'item_updated'};
-  return {id:h.id,action_type:map[h.type]||h.type,acted_by_name:h.user,item_id:h.itemId,item_name_snapshot:h.itemName,quantity:h.qty,unit:h.unit,from_scope:h.from,to_scope:h.to,created_at:new Date(h.time).toISOString()};
+  return {
+    id: h.id,
+    type: String(h.type||''),
+    user: String(h.user||''),
+    itemId: String(h.itemId||''),
+    itemName: String(h.itemName||''),
+    qty: Number(h.qty||0),
+    unit: String(h.unit||'個'),
+    from: String(h.from||''),
+    to:   String(h.to||''),
+    time: Number(h.time||Date.now()),
+    createdAt: window.__fb.serverTimestamp()
+  };
 }
+
+// ---- 個別の書き込み（呼び出し箇所は既存のまま動く） ----
+async function cloudUpsertItem(item){
+  if(!isCloudReady()) return;
+  const { db, doc, setDoc } = window.__fb;
+  await setDoc(
+    doc(db, 'users', currentAuthUser.uid, 'items', item.id),
+    cloudItemRow(item),
+    { merge: true }
+  );
+}
+// Firestore では freezerStock は item ドキュメントに埋め込み済み。
+// 既存呼び出し互換のため no-op として残す。
+async function cloudReplaceFreezerStock(_item){ return; }
 async function cloudPushLatestHistory(h){
-  if(!h) return;
-  const {error}=await supabaseClient.from('rooftop_history').upsert(cloudHistoryRow(h));
-  if(error) throw error;
+  if(!isCloudReady() || !h) return;
+  const { db, doc, setDoc } = window.__fb;
+  await setDoc(
+    doc(db, 'users', currentAuthUser.uid, 'history', String(h.id)),
+    cloudHistoryRow(h),
+    { merge: true }
+  );
 }
-async function reloadAllFromSupabase(showToast=true){
-  if(!isCloudReady()){ if(showToast) alert('Supabase未接続です。'); return; }
-  try{
-    updateSyncStatus('同期中...');
-    const [itemsRes, stockRes, historyRes]=await Promise.all([
-      supabaseClient.from('rooftop_items').select('*').eq('is_active', true).order('name'),
-      supabaseClient.from('rooftop_freezer_stock').select('*'),
-      supabaseClient.from('rooftop_history').select('*').order('created_at',{ascending:false}).limit(300)
-    ]);
-    if(itemsRes.error) throw itemsRes.error;
-    if(stockRes.error) throw stockRes.error;
-    if(historyRes.error) throw historyRes.error;
 
-    // ★安全ガード: クラウドがローカルより著しく少ない場合はデータ喪失扱い。
-    // ローカルをクラウドへ再seed し、ローカル state は維持する（上書き回避）。
-    const cloudItemCount = (itemsRes.data||[]).length;
-    const localItemCount = (state.items||[]).length;
-    if(localItemCount >= 5 && cloudItemCount < Math.ceil(localItemCount / 2)){
-      console.warn(`同期安全ガード: クラウド(${cloudItemCount}) < ローカル(${localItemCount})の半分。ローカルを再seedします。`);
-      try{
-        await cloudReplaceAllFromLocal();
-        updateSyncStatus('再seed完了: ローカル→クラウドへ復元', true);
-        if(showToast) toast(`☁ クラウドが欠けていたため、ローカル${localItemCount}商品でクラウドを復元しました`);
-      }catch(e){
-        console.error('再seed失敗:', e);
-        updateSyncStatus('同期エラー（ガード発動）');
-        if(showToast) alert('ローカル復元に失敗しました: '+(e.message||e));
-      }
-      return; // クラウドからの読み込みは行わない
-    }
+// ---- 一括書き込み: ローカル → クラウド ----
+async function cloudReplaceAllFromLocal(){
+  if(!isCloudReady()) return;
+  const { db, doc, writeBatch, collection, getDocs } = window.__fb;
+  const uid = currentAuthUser.uid;
+  const itemsCol = collection(db, 'users', uid, 'items');
+  const histCol  = collection(db, 'users', uid, 'history');
 
-    const stockMap={};
-    (stockRes.data||[]).forEach(r=>{
-      if(!stockMap[r.item_id]) stockMap[r.item_id]={F1:0,F2:0,F3:0,F4:0};
-      stockMap[r.item_id][r.freezer_code]=Number(r.quantity||0);
+  // 既存のクラウド側を一旦消す（500ドキュメント毎にバッチ）
+  const existingItems = await getDocs(itemsCol);
+  const existingHist  = await getDocs(histCol);
+  const allOld = [...existingItems.docs, ...existingHist.docs];
+  for(let i=0; i<allOld.length; i+=400){
+    const batch = writeBatch(db);
+    allOld.slice(i, i+400).forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  // 商品を書き込み
+  for(let i=0; i<state.items.length; i+=400){
+    const batch = writeBatch(db);
+    state.items.slice(i, i+400).forEach(item => {
+      batch.set(doc(itemsCol, item.id), cloudItemRow(item));
     });
+    await batch.commit();
+  }
+  // 履歴を書き込み（最新300件まで）
+  const recent = (state.history||[]).slice(0, 300);
+  for(let i=0; i<recent.length; i+=400){
+    const batch = writeBatch(db);
+    recent.slice(i, i+400).forEach(h => {
+      batch.set(doc(histCol, String(h.id)), cloudHistoryRow(h));
+    });
+    await batch.commit();
+  }
+}
 
-    const prevStoreMoved=Object.fromEntries(state.items.map(i=>[i.id, i.storeMoved||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}]));
-    const prevVisibility=Object.fromEntries(state.items.map(i=>[i.id, i.visibleInFreezers||null]));
-    const prevById=Object.fromEntries(state.items.map(i=>[i.id, i]));
-    state.items=(itemsRes.data||[]).map(r=>{
+// ---- リアルタイム購読開始 ----
+// onSnapshot は Supabase の「同期切れ」問題を根本解決する仕組み。
+// ネット切断→復帰時は自動で再接続され、最新差分だけ受け取る。
+function startFirestoreSync(){
+  if(!isCloudReady()) return;
+  if(_firestoreUnsub) { try{ _firestoreUnsub(); }catch(e){} _firestoreUnsub = null; }
+  const { db, collection, onSnapshot, query, orderBy, limit } = window.__fb;
+  const uid = currentAuthUser.uid;
+  const itemsCol = collection(db, 'users', uid, 'items');
+  const histCol  = collection(db, 'users', uid, 'history');
+
+  // items 購読
+  const unsubItems = onSnapshot(itemsCol, snap => {
+    // 初回かつ空 → ローカルから seed する
+    if(snap.empty && state.items.length > 0){
+      console.log('☁ Firestore empty: seed from local ('+state.items.length+' items)');
+      cloudReplaceAllFromLocal()
+        .then(()=>{ updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true); toast('☁ 初回データをクラウドに保存しました'); })
+        .catch(err=>{ console.error('seed失敗:', err); updateSyncStatus('seed失敗'); });
+      return;
+    }
+    if(snap.empty) return;
+    // クラウドのitemsをローカルに反映（自分の更新は merge=true なのでloop しない）
+    const prevById = Object.fromEntries(state.items.map(i => [i.id, i]));
+    state.items = snap.docs.map(d => {
+      const r = d.data();
       const prev = prevById[r.id] || {};
-      // 屋上/店舗 ぞれぞれの min/max を復元。
-      // クラウド側に min_store/max_store 列がある場合はそれを、なければローカルの値、さらに無ければ min_stock にフォールバック。
-      const minRoof  = Number(r.min_stock ?? prev.minRoof ?? 0);
-      const maxRoof  = Number(r.max_stock ?? prev.maxRoof ?? 0);
-      const minStore = Number(r.min_store != null ? r.min_store : (prev.minStore ?? r.min_stock ?? 0));
-      const maxStore = Number(r.max_store != null ? r.max_store : (prev.maxStore ?? r.max_stock ?? 0));
       return {
-        id:r.id, name:r.name, category:r.category, unit:r.unit,
-        min: minRoof, max: maxRoof,
-        minRoof, maxRoof, minStore, maxStore,
-        preferredStores: Array.isArray(r.preferred_stores)?r.preferred_stores:[],
-        usageCount: Number(r.usage_count||0),
-        freezerStock: stockMap[r.id]||{F1:0,F2:0,F3:0,F4:0},
-        // 優先順位: ① クラウドのvisible_in_freezers ② ローカルのprevVisibility ③ 在庫から推論
-        visibleInFreezers: inferVisibleInFreezers(r.id, stockMap, r.visible_in_freezers || prevVisibility[r.id]),
-        storeMoved: prevStoreMoved[r.id]||{'神楽坂':0,'男マエ食道':0,'深夜食道':0}
+        id: r.id || d.id,
+        name: r.name, category: r.category, unit: r.unit,
+        min: Number(r.min||0), max: Number(r.max||0),
+        minRoof:  Number(r.minRoof  ?? r.min ?? 0),
+        maxRoof:  Number(r.maxRoof  ?? r.max ?? 0),
+        minStore: Number(r.minStore ?? r.min ?? 0),
+        maxStore: Number(r.maxStore ?? r.max ?? 0),
+        preferredStores: Array.isArray(r.preferredStores) ? r.preferredStores : [],
+        usageCount: Number(r.usageCount||0),
+        freezerStock: r.freezerStock || Object.fromEntries(FREEZERS.map(f=>[f.code,0])),
+        visibleInFreezers: r.visibleInFreezers || prev.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
+        storeMoved: r.storeMoved || prev.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
+        confirmed: prev.confirmed || false,
+        confirmedAt: prev.confirmedAt || null
       };
     });
-
-    state.history=(historyRes.data||[]).map(r=>({
-      id:r.id,
-      type:({'inbound':'入庫','to_store':'店舗補充','between_freezers':'冷凍庫移動','item_created':'商品追加','item_added_to_freezer':'冷凍庫へ商品追加','item_removed_from_freezer':'冷凍庫から商品削除','item_updated':'商品編集'})[r.action_type]||r.action_type,
-      user:r.acted_by_name||'未設定', itemId:r.item_id, itemName:r.item_name_snapshot||'不明商品', qty:Number(r.quantity||0), unit:r.unit||'個',
-      from:r.from_scope||'', to:r.to_scope||'', time:new Date(r.created_at).getTime()
-    }));
-    // minRoof/minStore などの欠損を確実に埋める
     state = normalizeState(state);
-    saveState(); rerenderAllViews();
-    updateSyncStatus('接続中: '+(cloudConfig().email||currentAuthUser?.email||'cloud'), true);
-    if(showToast) toast('☁ クラウド同期しました');
-  }catch(err){
-    console.error(err); updateSyncStatus('同期失敗'); if(showToast) alert('同期に失敗しました: '+(err.message||err));
+    saveState();
+    rerenderAllViews();
+    updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true);
+  }, err => {
+    console.error('items onSnapshot error:', err);
+    updateSyncStatus('同期エラー');
+  });
+
+  // history 購読（最新300件）
+  const unsubHist = onSnapshot(query(histCol, orderBy('time', 'desc'), limit(300)), snap => {
+    state.history = snap.docs.map(d => {
+      const r = d.data();
+      return {
+        id: r.id || d.id,
+        type: r.type, user: r.user, itemId: r.itemId, itemName: r.itemName,
+        qty: Number(r.qty||0), unit: r.unit,
+        from: r.from||'', to: r.to||'',
+        time: Number(r.time || Date.now())
+      };
+    });
+    saveState();
+    renderHistory();
+  }, err => {
+    console.error('history onSnapshot error:', err);
+  });
+
+  _firestoreUnsub = () => { try{ unsubItems(); }catch(e){} try{ unsubHist(); }catch(e){} };
+}
+
+function stopFirestoreSync(){
+  if(_firestoreUnsub){ try{ _firestoreUnsub(); }catch(e){} _firestoreUnsub = null; }
+}
+
+// ---- 自動接続（ページロード時に Firebase の保存済みセッションを復元） ----
+async function tryAutoConnectSupabase(){  // 名前は互換のため維持
+  if(!window.__fb){
+    // SDKがまだ読み込まれていない場合は読み込み完了を待つ
+    await new Promise(resolve => {
+      if(window.__fb) return resolve();
+      window.addEventListener('firebase-ready', resolve, { once:true });
+      setTimeout(resolve, 3000); // フォールバック
+    });
   }
+  if(!window.__fb) return;
+  updateSyncStatus('接続準備中...');
+  const { auth, onAuthStateChanged } = window.__fb;
+  onAuthStateChanged(auth, user => {
+    if(user){
+      currentAuthUser = user;
+      cloudEnabled = true;
+      updateSyncStatus('接続中: '+(user.email||user.uid.slice(0,8)), true);
+      updateAuthButtonsUI();
+      startFirestoreSync();
+    }else{
+      currentAuthUser = null;
+      cloudEnabled = false;
+      stopFirestoreSync();
+      updateSyncStatus('未ログイン（設定からGoogleでログイン）');
+      updateAuthButtonsUI();
+    }
+  });
+}
+
+// 互換用エイリアス: 旧名で呼ばれていた箇所が動くように
+async function reloadAllFromSupabase(showToast=true){
+  // Firebase は onSnapshot で常時同期しているため、手動再読み込みは
+  // 実質「ローカル→クラウド再送」になる。
+  if(!isCloudReady()){ if(showToast) alert('未ログインです。'); return; }
+  if(showToast) toast('☁ リアルタイム同期で最新です');
 }
 
 function fillExistingItemOptions(targetFreezerCode){
