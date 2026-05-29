@@ -27,8 +27,8 @@ service cloud.firestore {
 
     // ====== 許可リスト（編集する場所） ======
     function ownerEmail()    { return 'bado1225@gmail.com'; }
-    function staffEmails()    { return []; }                       // 例: ['staff1@gmail.com']
-    function readonlyEmails() { return []; }                       // 例: ['view@gmail.com']
+    function staffEmails()    { return ['vc30mavs@gmail.com']; }   // 編集できるスタッフ
+    function readonlyEmails() { return []; }                       // 閲覧だけのGoogleメール（将来用）
 
     // ====== 判定ヘルパ ======
     function authedEmail() {
