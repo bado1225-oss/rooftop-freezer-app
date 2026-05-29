@@ -1233,8 +1233,10 @@ function renderDashboardHero(){
     if(isOut) outCount++;
     if(roofStatus  === 'low')  needOrder++;
     if(roofStatus  === 'warn') warnOrder++;
-    if(storeStatus === 'low')  needRefill++;
-    if(storeStatus === 'warn') warnRefill++;
+    // 「補充必要」は屋上と店舗の両方に登録がある商品のみ。
+    // 補充=屋上→店舗の移動なので、屋上に登録がない＝補充元が無い商品は対象外。
+    if(inRoof && inStore && storeStatus === 'low')  needRefill++;
+    if(inRoof && inStore && storeStatus === 'warn') warnRefill++;
     if(!isOut && roofStatus !== 'low' && storeStatus !== 'low' &&
        roofStatus !== 'warn' && storeStatus !== 'warn') ok++;
   });
@@ -1451,7 +1453,15 @@ function renderUnifiedItemList(opts){
     items = items.filter(i => getFreezerVisibility(i, freezer));
   }
   if(onlyLow){
-    items = items.filter(i => groupStatusOf(i, fzSet) === 'low');
+    items = items.filter(i => {
+      if(groupStatusOf(i, fzSet) !== 'low') return false;
+      // 店舗ビューの「補充必要」は屋上にも登録がある商品のみ
+      // (補充=屋上→店舗の操作なので、屋上に登録がない商品は補充できない)
+      if(kind === 'store'){
+        return ROOF_FREEZERS.some(f => getFreezerVisibility(i, f.code));
+      }
+      return true;
+    });
   }
   if(onlyOut){
     // 「在庫切れ」: 表示対象の全冷凍庫の合計が0
