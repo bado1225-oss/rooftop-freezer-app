@@ -2379,6 +2379,11 @@ function startFirestoreSync(){
 
   // history 購読（最新300件）
   const unsubHist = onSnapshot(query(histCol, orderBy('time', 'desc'), limit(300)), snap => {
+    // 安全策: クラウドが空のとき、ローカル履歴を絶対に消さない。
+    // 初回サインイン時に items 側で seed (cloudReplaceAllFromLocal) が走るので、
+    // そこで history も一緒にアップロードされる。アップロード後にこのスナップショットが
+    // 再度発火して履歴が反映される。
+    if(snap.empty) return;
     state.history = snap.docs.map(d => {
       const r = d.data();
       return {
