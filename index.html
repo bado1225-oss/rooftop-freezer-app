@@ -2347,15 +2347,24 @@ function startFirestoreSync(){
 
   // items 購読
   const unsubItems = onSnapshot(itemsCol, snap => {
-    // 初回かつ空 → ローカルから seed する
-    if(snap.empty && state.items.length > 0){
+    // 初回かつ空 → ローカルから seed する。
+    // ただし seed は「オーナーだけ」が行う。スタッフがやってしまうと、スタッフの
+    // 初期データ（在庫0の16商品）でクラウドが初期化され、オーナーの実データが
+    // 上書き消去される事故になるため。
+    if(snap.empty && state.items.length > 0 && isOwnerUser()){
       console.log('☁ Firestore empty: seed from local ('+state.items.length+' items)');
       cloudReplaceAllFromLocal()
         .then(()=>{ updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true); toast('☁ 初回データをクラウドに保存しました'); })
         .catch(err=>{ console.error('seed失敗:', err); updateSyncStatus('seed失敗'); });
       return;
     }
-    if(snap.empty) return;
+    if(snap.empty){
+      // スタッフが先にログインしてクラウドが空: オーナーのデータを待つ
+      if(!isOwnerUser()){
+        updateSyncStatus('オーナーがログインしてデータをアップするまでお待ちください', false);
+      }
+      return;
+    }
     // クラウドのitemsをローカルに反映（自分の更新は merge=true なのでloop しない）
     const prevById = Object.fromEntries(state.items.map(i => [i.id, i]));
     state.items = snap.docs.map(d => {
