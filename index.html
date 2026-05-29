@@ -2155,19 +2155,21 @@ function isReadOnlyUser(){
 }
 
 // ボタンの表示切り替え（ログイン状態 + 権限に応じて）
+// iOS Safari で style.display='' が反映されないことがあるため、
+// 表示するときは明示的に 'inline-block' を指定する。
 function updateAuthButtonsUI(){
   const inEl  = document.getElementById('googleSignInBtn');
   const outEl = document.getElementById('googleSignOutBtn');
   const pushEl = document.getElementById('forceResyncBtn');
   const signedIn = !!currentAuthUser;
-  if(inEl)  inEl.style.display  = signedIn ? 'none' : '';
-  if(outEl) outEl.style.display = signedIn ? '' : 'none';
+  if(inEl)  inEl.style.display  = signedIn ? 'none' : 'inline-block';
+  if(outEl) outEl.style.display = signedIn ? 'inline-block' : 'none';
   // 「ローカル→クラウド上書き」はオーナー専用（誤操作で他人の入力を消す危険があるため）
-  if(pushEl) pushEl.style.display = (signedIn && isOwnerUser()) ? '' : 'none';
+  if(pushEl) pushEl.style.display = (signedIn && isOwnerUser()) ? 'inline-block' : 'none';
 
   // 「初期データに戻す」もオーナー専用
   const resetBtn = document.querySelector('button.danger[onclick^="resetAll"]');
-  if(resetBtn) resetBtn.style.display = isOwnerUser() ? '' : 'none';
+  if(resetBtn) resetBtn.style.display = isOwnerUser() ? 'inline-block' : 'none';
 }
 
 async function signInWithGoogle(){
@@ -3212,6 +3214,7 @@ function switchView(tabId, keepFilter){
   if(tabId==='freezers') renderFreezers();
   if(tabId==='store-freezers') renderStoreFreezer();
   if(tabId==='history') renderHistory();
+  if(tabId==='settings') updateAuthButtonsUI(); // 設定画面を開くたびにボタンを再評価
   renderDashboardHero(); // active状態を反映
   window.scrollTo({top:0,behavior:'smooth'});
 }
