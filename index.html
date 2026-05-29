@@ -47,7 +47,8 @@
     .dashboard-hero .hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}
     .dashboard-hero .hero-title{font-size:16px;font-weight:800;letter-spacing:.02em}
     .dashboard-hero .hero-stamp{font-size:11px;color:#fff;background:rgba(255,255,255,.12);border-radius:999px;padding:6px 12px;white-space:nowrap}
-    .kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    @media (max-width:540px){ .kpi-grid{grid-template-columns:repeat(2,1fr)} }
     .kpi-card{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px 10px;text-align:left;cursor:pointer;transition:background .15s,transform .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
     .kpi-card:hover,.kpi-card:active{background:rgba(255,255,255,.16);transform:translateY(-2px)}
     .kpi-card.no-click{cursor:default}
@@ -56,6 +57,7 @@
     .kpi-num{font-size:32px;font-weight:900;line-height:1;margin:2px 0 6px}
     .kpi-card.kpi-refill .kpi-num{color:#fca5a5}
     .kpi-card.kpi-order  .kpi-num{color:#fcd34d}
+    .kpi-card.kpi-out    .kpi-num{color:#9ca3af}
     .kpi-card.kpi-ok     .kpi-num{color:#86efac}
     .kpi-sub{font-size:11px;color:#cbd5e1;line-height:1.5}
     .kpi-warn{display:inline-block;margin-top:4px;padding:2px 8px;background:rgba(253,224,71,.2);border:1px solid rgba(253,224,71,.4);border-radius:999px;font-size:10px;font-weight:800;color:#fde047}
@@ -265,8 +267,8 @@
     /* 展開時の詳細 */
     .zc-detail{border-top:1px solid var(--zc-line);background:#fafbfc;padding:12px 14px}
     .zc-detail-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-    .zc-detail-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-    .zc-detail-actions .stock-action-btn{padding:14px 10px;font-size:14px;border-radius:10px}
+    .zc-detail-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .zc-detail-actions .stock-action-btn{flex:1 1 0;min-width:140px;padding:14px 10px;font-size:14px;border-radius:10px}
     /* 展開時の ±1 即時調整（横並び、現場最速） */
     .zc-quick-step-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px}
     .zc-quick-btn-wide{height:56px;border-radius:12px;border:2px solid;background:#fff;font-size:16px;font-weight:900;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .08s,background .12s}
@@ -1216,18 +1218,24 @@ function renderDashboardHero(){
   const kpisEl=document.getElementById('dashboardKpis');
   const stampEl=document.getElementById('heroStamp');
   if(!kpisEl) return;
-  const managed = (state.items||[]).filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true));
-  let needOrder=0, needRefill=0, warnOrder=0, warnRefill=0, ok=0;
+  // 重複エントリで二重カウントしないよう、表示用と同じく unified items で集計する
+  const managed = buildUnifiedItems(state.items).filter(i=>FREEZERS.some(f=>getFreezerVisibility(i,f.code)===true));
+  let needOrder=0, needRefill=0, warnOrder=0, warnRefill=0, outCount=0, ok=0;
   managed.forEach(item=>{
     const inRoof  = ROOF_FREEZERS.some(f=>getFreezerVisibility(item,f.code));
     const inStore = STORE_FREEZERS.some(f=>getFreezerVisibility(item,f.code));
     const roofStatus  = inRoof  ? groupStatusOf(item, ROOF_FREEZERS)  : 'ok';
     const storeStatus = inStore ? groupStatusOf(item, STORE_FREEZERS) : 'ok';
+    // 在庫切れ: 表示対象の冷凍庫の合計が 0
+    const totalAll = FREEZERS.filter(f=>getFreezerVisibility(item,f.code))
+                            .reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0), 0);
+    const isOut = totalAll === 0;
+    if(isOut) outCount++;
     if(roofStatus  === 'low')  needOrder++;
     if(roofStatus  === 'warn') warnOrder++;
     if(storeStatus === 'low')  needRefill++;
     if(storeStatus === 'warn') warnRefill++;
-    if(roofStatus !== 'low' && storeStatus !== 'low' &&
+    if(!isOut && roofStatus !== 'low' && storeStatus !== 'low' &&
        roofStatus !== 'warn' && storeStatus !== 'warn') ok++;
   });
   const total = managed.length;
@@ -1245,6 +1253,11 @@ function renderDashboardHero(){
       <div class="kpi-num">${needOrder}</div>
       <div class="kpi-sub">屋上側の不足</div>
       ${warnOrderChip}
+    </button>
+    <button class="kpi-card kpi-out ${dashboardFilter==='out'?'is-active':''}" type="button" onclick="applyDashboardFilter('out')">
+      <div class="kpi-label">在庫切れ</div>
+      <div class="kpi-num">${outCount}</div>
+      <div class="kpi-sub">合計が0の品目</div>
     </button>
     <div class="kpi-card kpi-ok no-click">
       <div class="kpi-label">正常</div>
@@ -1321,11 +1334,11 @@ function itemCard(item, fzGroup=null){
     return `<span class="mc-fz-chip ${fzCls(f.code)}${q===0?' fz-zero':''}"><span class="loc-chip-name">${escapeHtml(fname)}</span><span class="loc-chip-sep">:</span><span class="loc-chip-qty">${q}${item.unit}</span></span>`;
   }).join('');
   // 店舗冷凍庫グループ（S-code）かどうかで第2ボタンを切り替え
-  // 「＋入庫」は撤廃、ラベルは行動が分かる表現に統一
+  // 「＋入庫」「→使用」は撤廃。屋上=店舗へ補充、店舗=なし。
   const isStoreGroup=fzGroup&&fzGroup.length>0&&fzGroup[0].code.startsWith('S');
   const canAction=total>0;
   const actionBtn2=isStoreGroup
-    ?`<button class="mc-act-btn mc-use" ${canAction?`onclick="openQuickUse('${item.id}')"`:'disabled'}>→ 使用する</button>`
+    ?``
     :`<button class="mc-act-btn mc-replenish" ${canAction?`onclick="openQuickReplenish('${item.id}')"`:'disabled'}>→ 店舗へ補充</button>`;
   return `
 <div class="item mc-card ${status}">
@@ -1425,7 +1438,7 @@ function renderDashboard(){
 // fzSet: ROOF_FREEZERS or STORE_FREEZERS
 // kind: 'roof' | 'store' — 操作ボタン構成や文言の分岐用
 function renderUnifiedItemList(opts){
-  const { fzSet, kind, listEl, subFilterEl, searchEl, onlyLow, bannerHtml, isAction } = opts;
+  const { fzSet, kind, listEl, subFilterEl, searchEl, onlyLow, onlyOut, bannerHtml, isAction } = opts;
   const activeBtn = subFilterEl.querySelector('.fz-filter-btn.active');
   const freezer = activeBtn?.dataset?.filter || 'all';
   const q = (searchEl?.value || '').trim().toLowerCase();
@@ -1439,6 +1452,13 @@ function renderUnifiedItemList(opts){
   }
   if(onlyLow){
     items = items.filter(i => groupStatusOf(i, fzSet) === 'low');
+  }
+  if(onlyOut){
+    // 「在庫切れ」: 表示対象の全冷凍庫の合計が0
+    items = items.filter(i =>
+      FREEZERS.filter(f => getFreezerVisibility(i, f.code))
+              .reduce((s,f) => s + Number(i.freezerStock?.[f.code]||0), 0) === 0
+    );
   }
   // ステータス順（不足→注意→過剰→在庫切れ→適正）でソート
   // ※ 「展開中の商品がある」=入力途中 の間は並び順を凍結する。
@@ -1510,10 +1530,10 @@ function renderUnifiedItemList(opts){
         : status==='high' ? '商品全体で過剰'
         : status==='out' ? '在庫切れ'
         : '商品全体で適正';
-      // ボタンは2つだけ。「入庫」は撤廃、ラベルは行動が一目で分かる表現に変更。
+      // 入庫・使用ボタンは廃止（±1袋とカード横の操作で十分）。
+      // 屋上は「店舗へ補充」と「冷凍庫間を移動」の2つ、店舗は「冷凍庫間を移動」だけ。
       const actions = (kind==='store')
-        ? `<button class="stock-action-btn use" onclick="openQuickUse('${item.id}','${defFreezer}')">→ 使用する</button>
-           <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 冷凍庫間を移動</button>`
+        ? `<button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 冷凍庫間を移動</button>`
         : `<button class="stock-action-btn refill" onclick="openQuickReplenish('${item.id}','${defFreezer}')">→ 店舗へ補充</button>
            <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 冷凍庫間を移動</button>`;
       detail = `
@@ -1583,7 +1603,7 @@ function renderUnifiedItemList(opts){
       return `<div class="cat-section">${header}${rows}</div>`;
     }).join('');
   }else{
-    rowsHtml = `<div class="empty" style="margin:14px">${onlyLow?'該当する不足商品はありません。':'該当する在庫はありません。'}</div>`;
+    rowsHtml = `<div class="empty" style="margin:14px">${onlyLow?'該当する不足商品はありません。':onlyOut?'該当する在庫切れ商品はありません。':'該当する在庫はありません。'}</div>`;
   }
 
   // 末尾に「冷凍庫に商品追加」ボタン群（特定冷凍庫が選択されている時のみ）
@@ -1613,8 +1633,10 @@ function openHistoryFilteredByCategory(cat){
 
 function renderFreezers(){
   const onlyLow = dashboardFilter === 'order';
-  const banner = onlyLow
-    ? `<div class="dashboard-filter-banner"><span>📌 発注必要（屋上側の不足）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
+  const onlyOut = dashboardFilter === 'out';
+  const banner =
+      onlyLow ? `<div class="dashboard-filter-banner"><span>📌 発注必要（屋上側の不足）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
+    : onlyOut ? `<div class="dashboard-filter-banner"><span>📌 在庫切れ（合計0）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
     : '';
   renderUnifiedItemList({
     fzSet: ROOF_FREEZERS,
@@ -1623,6 +1645,7 @@ function renderFreezers(){
     subFilterEl: document.getElementById('fzSubFilter'),
     searchEl: document.getElementById('searchFreezer'),
     onlyLow,
+    onlyOut,
     bannerHtml: banner,
   });
 }
@@ -1630,8 +1653,10 @@ function renderFreezers(){
 // 店舗冷凍個別ビュー（S1-S5）
 function renderStoreFreezer(){
   const onlyLow = dashboardFilter === 'refill';
-  const banner = onlyLow
-    ? `<div class="dashboard-filter-banner"><span>📌 補充必要（店舗側の不足）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
+  const onlyOut = dashboardFilter === 'out';
+  const banner =
+      onlyLow ? `<div class="dashboard-filter-banner"><span>📌 補充必要（店舗側の不足）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
+    : onlyOut ? `<div class="dashboard-filter-banner"><span>📌 在庫切れ（合計0）の商品のみ表示中</span><button class="ban-clear" type="button" onclick="clearDashboardFilter()">✕ 絞り込みを解除</button></div>`
     : '';
   renderUnifiedItemList({
     fzSet: STORE_FREEZERS,
@@ -1640,6 +1665,7 @@ function renderStoreFreezer(){
     subFilterEl: document.getElementById('sfSubFilter'),
     searchEl: document.getElementById('searchStoreFreezer'),
     onlyLow,
+    onlyOut,
     bannerHtml: banner,
   });
 }
@@ -3110,9 +3136,20 @@ function toggleItemConfirmed(itemId, checked){
 
 function applyDashboardFilter(type){
   dashboardFilter = type;
+  // KPIタップ時はサブフィルター(A/B/C/D/-60度 や No.1〜)も「すべて」に戻す。
+  // でないと「店舗側で不足だが Cタブ には居ない商品」が見えなくなる。
+  resetSubFilterToAll('#fzSubFilter');
+  resetSubFilterToAll('#sfSubFilter');
   if(type === 'refill')      switchView('store-freezers', /*keepFilter*/true);
   else if(type === 'order')  switchView('freezers',       /*keepFilter*/true);
   else { renderDashboardHero(); renderFreezers(); renderStoreFreezer(); }
+}
+function resetSubFilterToAll(selector){
+  const container = document.querySelector(selector);
+  if(!container) return;
+  container.querySelectorAll('.fz-filter-btn').forEach(b => b.classList.remove('active'));
+  const allBtn = container.querySelector('.fz-filter-btn[data-filter="all"]');
+  if(allBtn) allBtn.classList.add('active');
 }
 function clearDashboardFilter(){
   dashboardFilter = null;
