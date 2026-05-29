@@ -1437,12 +1437,32 @@ function renderUnifiedItemList(opts){
     items = items.filter(i => groupStatusOf(i, fzSet) === 'low');
   }
   // ステータス順（不足→注意→過剰→在庫切れ→適正）でソート
+  // ※ 「展開中の商品がある」=入力途中 の間は並び順を凍結する。
+  //    ±1 を押すたびに在庫→ステータスが変わってカードが飛び跳ねるのを防ぐため。
+  //    すべてのカードを閉じた瞬間に、自動で最新ステータス順に並び替わる。
   const rank = {low:0, warn:1, high:2, out:3, ok:4};
   items.sort((a,b)=>{
     const sa = groupStock(a, fzSet)===0 ? 'out' : groupStatusOf(a, fzSet);
     const sb = groupStock(b, fzSet)===0 ? 'out' : groupStatusOf(b, fzSet);
     return (rank[sa]??9) - (rank[sb]??9) || a.name.localeCompare(b.name,'ja');
   });
+  // ピン留め: 「いずれかのカードが展開中」なら前回の順をそのまま使う。
+  // 展開を全部閉じた次のrenderで、はじめて最新順を覚え直す。
+  window._pinnedSortOrder = window._pinnedSortOrder || {};
+  const _pinKey = kind; // 'roof' or 'store' — 屋上/店舗で独立管理
+  const _hasExpanded = items.some(i => expandedItemIds.has(i.id));
+  if(_hasExpanded && Array.isArray(window._pinnedSortOrder[_pinKey])){
+    const _order = window._pinnedSortOrder[_pinKey];
+    const _orderIdx = new Map(_order.map((id,i) => [id, i]));
+    // ピン留め順を尊重しつつ、新商品はfresh末尾に並べる
+    items = items
+      .map((it, freshIdx) => ({ it, k: _orderIdx.has(it.id) ? _orderIdx.get(it.id) : (1e9 + freshIdx) }))
+      .sort((a,b) => a.k - b.k)
+      .map(x => x.it);
+  } else {
+    // 何も展開していない時だけ最新順を覚える
+    window._pinnedSortOrder[_pinKey] = items.map(i => i.id);
+  }
 
   // カテゴリごとにグルーピング（添付スクショ風の見出しバー＋商品リスト）
   const byCategory = {};
