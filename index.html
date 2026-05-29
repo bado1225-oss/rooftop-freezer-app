@@ -237,7 +237,10 @@
     .zc-body{flex:1;min-width:0}
     .zc-name{font-size:16px;font-weight:700;color:var(--zc-text);line-height:1.35;word-break:break-word}
     .zc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-    .loc-chip{display:inline-flex;align-items:center;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;border:1px solid;white-space:nowrap}
+    .loc-chip{display:inline-flex;align-items:baseline;gap:5px;padding:5px 11px;border-radius:8px;font-size:13px;font-weight:700;border:1.5px solid;white-space:nowrap;margin-right:2px}
+    .loc-chip-name{font-size:16px;font-weight:900;letter-spacing:.02em;line-height:1.1}
+    .loc-chip-sep{opacity:.55;font-weight:700}
+    .loc-chip-qty{font-weight:800}
     .loc-chip.f1{background:var(--fz1-bg);color:var(--fz1-text);border-color:#bfdbfe}
     .loc-chip.f2{background:var(--fz2-bg);color:var(--fz2-text);border-color:#a7f3d0}
     .loc-chip.f3{background:var(--fz3-bg);color:var(--fz3-text);border-color:#fdba74}
@@ -262,8 +265,8 @@
     /* 展開時の詳細 */
     .zc-detail{border-top:1px solid var(--zc-line);background:#fafbfc;padding:12px 14px}
     .zc-detail-meta{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-    .zc-detail-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-    .zc-detail-actions .stock-action-btn{padding:11px 8px;font-size:13px;border-radius:8px}
+    .zc-detail-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .zc-detail-actions .stock-action-btn{padding:14px 10px;font-size:14px;border-radius:10px}
     /* 展開時の ±1 即時調整（横並び、現場最速） */
     .zc-quick-step-row{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:10px}
     .zc-quick-btn-wide{height:56px;border-radius:12px;border:2px solid;background:#fff;font-size:16px;font-weight:900;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .08s,background .12s}
@@ -310,7 +313,7 @@
     .mc-act-btn:active{transform:scale(.93)}
     .mc-act-btn:disabled{opacity:.32;cursor:default;transform:none!important}
     .mc-fz{display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px 12px;border-top:1px solid var(--line)}
-    .mc-fz-chip{padding:5px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+    .mc-fz-chip{display:inline-flex;align-items:baseline;gap:5px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap;border:1.5px solid transparent}
     .mc-fz-chip.f1{background:var(--fz1-bg);color:var(--fz1-text)}
     .mc-fz-chip.f2{background:var(--fz2-bg);color:var(--fz2-text)}
     .mc-fz-chip.f3{background:var(--fz3-bg);color:var(--fz3-text)}
@@ -1314,14 +1317,16 @@ function itemCard(item, fzGroup=null){
     :`<span class="status ok">適正在庫</span>`;
   const fzChips=activeF.map(f=>{
     const q=Number(item.freezerStock?.[f.code]||0);
-    return `<span class="mc-fz-chip ${fzCls(f.code)}${q===0?' fz-zero':''}">冷凍庫${fzNum(f.code)}：${q}${item.unit}</span>`;
+    const fname = f.name.replace('冷凍庫','');
+    return `<span class="mc-fz-chip ${fzCls(f.code)}${q===0?' fz-zero':''}"><span class="loc-chip-name">${escapeHtml(fname)}</span><span class="loc-chip-sep">:</span><span class="loc-chip-qty">${q}${item.unit}</span></span>`;
   }).join('');
   // 店舗冷凍庫グループ（S-code）かどうかで第2ボタンを切り替え
+  // 「＋入庫」は撤廃、ラベルは行動が分かる表現に統一
   const isStoreGroup=fzGroup&&fzGroup.length>0&&fzGroup[0].code.startsWith('S');
   const canAction=total>0;
   const actionBtn2=isStoreGroup
-    ?`<button class="mc-act-btn mc-use" ${canAction?`onclick="openQuickUse('${item.id}')"`:'disabled'}>→ 使用</button>`
-    :`<button class="mc-act-btn mc-replenish" ${canAction?`onclick="openQuickReplenish('${item.id}')"`:'disabled'}>→ 補充</button>`;
+    ?`<button class="mc-act-btn mc-use" ${canAction?`onclick="openQuickUse('${item.id}')"`:'disabled'}>→ 使用する</button>`
+    :`<button class="mc-act-btn mc-replenish" ${canAction?`onclick="openQuickReplenish('${item.id}')"`:'disabled'}>→ 店舗へ補充</button>`;
   return `
 <div class="item mc-card ${status}">
   <div class="mc-top">
@@ -1334,7 +1339,6 @@ function itemCard(item, fzGroup=null){
       <span class="mc-total-unit">${escapeHtml(item.unit)}</span>
     </div>
     <div class="mc-acts">
-      <button class="mc-act-btn mc-inbound" onclick="openQuickInbound('${item.id}')">＋ 入庫</button>
       ${actionBtn2}
     </div>
   </div>
@@ -1486,8 +1490,8 @@ function renderUnifiedItemList(opts){
       .filter(f => getFreezerVisibility(item, f.code))
       .map(f => {
         const qty = Number(item.freezerStock?.[f.code]||0);
-        const label = (kind==='store') ? `${f.name.replace('冷凍庫','')}` : `${f.name.replace('冷凍庫','')}`;
-        return `<span class="loc-chip ${fzCls(f.code)}">${escapeHtml(label)}：${qty}${item.unit}</span>`;
+        const label = f.name.replace('冷凍庫','');
+        return `<span class="loc-chip ${fzCls(f.code)}"><span class="loc-chip-name">${escapeHtml(label)}</span><span class="loc-chip-sep">:</span><span class="loc-chip-qty">${qty}${item.unit}</span></span>`;
       }).join('');
     // アクセシビリティ: 色＋アイコンで状態を表現
     const statusLabel = {
@@ -1506,13 +1510,12 @@ function renderUnifiedItemList(opts){
         : status==='high' ? '商品全体で過剰'
         : status==='out' ? '在庫切れ'
         : '商品全体で適正';
+      // ボタンは2つだけ。「入庫」は撤廃、ラベルは行動が一目で分かる表現に変更。
       const actions = (kind==='store')
-        ? `<button class="stock-action-btn inbound" onclick="openQuickInbound('${item.id}','${defFreezer}')">＋ 入庫</button>
-           <button class="stock-action-btn use" onclick="openQuickUse('${item.id}','${defFreezer}')">→ 使用</button>
-           <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 移動</button>`
-        : `<button class="stock-action-btn inbound" onclick="openQuickInbound('${item.id}','${defFreezer}')">＋ 入庫</button>
-           <button class="stock-action-btn refill" onclick="openQuickReplenish('${item.id}','${defFreezer}')">→ 補充</button>
-           <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 移動</button>`;
+        ? `<button class="stock-action-btn use" onclick="openQuickUse('${item.id}','${defFreezer}')">→ 使用する</button>
+           <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 冷凍庫間を移動</button>`
+        : `<button class="stock-action-btn refill" onclick="openQuickReplenish('${item.id}','${defFreezer}')">→ 店舗へ補充</button>
+           <button class="stock-action-btn move" onclick="openQuickMove('${item.id}','${defFreezer}')">⇄ 冷凍庫間を移動</button>`;
       detail = `
         <div class="zc-detail">
           <div class="zc-detail-meta">
