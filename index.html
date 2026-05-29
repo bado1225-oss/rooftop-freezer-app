@@ -1316,7 +1316,9 @@ function sortItems(items,mode,fzGroup=null){
 }
 // fzGroup: ROOF_FREEZERS / STORE_FREEZERS / null(全体)
 function itemCard(item, fzGroup=null){
-  const useFz = fzGroup || FREEZERS;
+  // 念のため非配列ガード: items.map(itemCard) のように呼ばれて fzGroup が数値に
+  // なるケースを防止する
+  const useFz = (Array.isArray(fzGroup) ? fzGroup : null) || FREEZERS;
   // チップ表示と一致させるため、visible=trueのfreezerのみを対象に合計を計算
   const activeF = useFz.filter(f=>getFreezerVisibility(item,f.code));
   const total = activeF.reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
@@ -1687,7 +1689,10 @@ function renderAlerts(){
     .filter(i=>statusOf(i)!=='ok')
     .sort((a,b)=>a.name.localeCompare(b.name,'ja'));
   document.getElementById('alertCount').textContent=`${items.length}件`;
-  document.getElementById('alertList').innerHTML=items.length?items.map(itemCard).join(''):`<div class="empty">現在、アラートはありません。</div>`;
+  // ※ items.map(itemCard) と書くと map がコールバックに (val, index, arr) を渡し、
+  //   itemCard の 2 番目の引数 fzGroup に数値が入って useFz.filter is not a function に
+  //   なるため、必ず明示的に i だけを渡す
+  document.getElementById('alertList').innerHTML=items.length?items.map(i=>itemCard(i)).join(''):`<div class="empty">現在、アラートはありません。</div>`;
 }
 function renderHistory(){
   const q=document.getElementById('historySearch')?.value?.trim().toLowerCase()||'', type=document.getElementById('historyType')?.value||'all';
