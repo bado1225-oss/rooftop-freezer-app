@@ -765,7 +765,13 @@
 
 <script>
 const STORAGE_KEY='rooftop_freezer_inventory_v6';
-// 旧 SUPABASE_STORAGE_KEY は Firebase 移行に伴い廃止
+
+// ===== 共有設定（誰が読み書きできるか） =====
+// 変更時は firestore.rules も同じリストに揃えること。
+const SHOP_ID = 'main';                                // 将来、店舗別にする時はここを増やす
+const OWNER_EMAIL = 'bado1225@gmail.com';              // オーナー（全権）
+const STAFF_EMAILS = [];                               // 編集できるスタッフのGoogleメール
+const READONLY_EMAILS = [];                            // 閲覧だけのGoogleメール（将来用）
 const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F2',name:'冷凍庫No.2',cls:'b2'},{code:'F3',name:'冷凍庫No.3',cls:'b3'},{code:'F4',name:'冷凍庫No.4',cls:'b4'},{code:'F5',name:'アパート冷凍庫',cls:'b5'}];
 const STORE_FREEZERS=[{code:'S1',name:'冷凍庫A',cls:'b1'},{code:'S2',name:'冷凍庫B',cls:'b2'},{code:'S3',name:'冷凍庫C',cls:'b3'},{code:'S4',name:'冷凍庫D',cls:'b4'},{code:'S5',name:'-60度冷凍庫',cls:'b5'}];
 const FREEZERS=[...ROOF_FREEZERS,...STORE_FREEZERS];
@@ -2046,10 +2052,17 @@ async function submitMove(){
 function saveUserSettings(){
   const name=document.getElementById('userNameInput').value.trim(), role=document.getElementById('userRoleInput').value;
   if(!name){alert('利用者名を入力してください。'); return} if(!ROLES.includes(role)){alert('権限が不正です。'); return}
-  state.user={name,role}; render(); if(isCloudReady()) upsertMyProfile().catch(console.error); alert('利用者設定を保存しました。');
+  // Googleログイン中は表示名がGoogle側で自動上書きされる。ここでの変更は次のログアウト〜再ログインまで有効。
+  state.user={name,role}; render();
+  alert('利用者設定を保存しました。');
 }
 async function resetAll(){
-  if(!confirm('すべてのデータを初期状態に戻します。よろしいですか？')) return;
+  // 共有運用での安全策: オーナー以外には実行させない（UIで非表示にしているが念のため）
+  if(currentAuthUser && !isOwnerUser()){
+    alert('「初期データに戻す」はオーナーのみ実行できます。');
+    return;
+  }
+  if(!confirm('すべてのデータを初期状態に戻します。よろしいですか？\n（共有データベースにも反映されます）')) return;
   state=JSON.parse(JSON.stringify(initialState)); render();
   if(isCloudReady()){
     try{
@@ -2060,13 +2073,29 @@ async function resetAll(){
 }
 
 /* ==== Firebase (Auth + Firestore) ====
- * データ構造:
- *   users/{uid}/items/{itemId}     ← 商品（freezerStock を埋め込み）
- *   users/{uid}/history/{historyId} ← 履歴
+ * データ構造（共有モデル）:
+ *   shops/{SHOP_ID}/items/{itemId}      ← 商品（freezerStock を埋め込み）
+ *   shops/{SHOP_ID}/history/{historyId} ← 操作履歴
  * 同期: onSnapshot による双方向リアルタイム同期
+ * 権限: firestore.rules で
+ *   - オーナーのみ削除/初期化が可能
+ *   - 許可メール（OWNER_EMAIL + STAFF_EMAILS）以外は読み書きできない
  */
 
-// ボタンの表示切り替え（ログイン状態に応じて）
+// ===== 権限判定 =====
+function isOwnerUser(){
+  return !!currentAuthUser && currentAuthUser.email === OWNER_EMAIL;
+}
+function isStaffUser(){
+  if(!currentAuthUser) return false;
+  if(isOwnerUser()) return true;
+  return STAFF_EMAILS.includes(currentAuthUser.email);
+}
+function isReadOnlyUser(){
+  return !!currentAuthUser && READONLY_EMAILS.includes(currentAuthUser.email);
+}
+
+// ボタンの表示切り替え（ログイン状態 + 権限に応じて）
 function updateAuthButtonsUI(){
   const inEl  = document.getElementById('googleSignInBtn');
   const outEl = document.getElementById('googleSignOutBtn');
@@ -2074,7 +2103,12 @@ function updateAuthButtonsUI(){
   const signedIn = !!currentAuthUser;
   if(inEl)  inEl.style.display  = signedIn ? 'none' : '';
   if(outEl) outEl.style.display = signedIn ? '' : 'none';
-  if(pushEl) pushEl.style.display = signedIn ? '' : 'none';
+  // 「ローカル→クラウド上書き」はオーナー専用（誤操作で他人の入力を消す危険があるため）
+  if(pushEl) pushEl.style.display = (signedIn && isOwnerUser()) ? '' : 'none';
+
+  // 「初期データに戻す」もオーナー専用
+  const resetBtn = document.querySelector('button.danger[onclick^="resetAll"]');
+  if(resetBtn) resetBtn.style.display = isOwnerUser() ? '' : 'none';
 }
 
 async function signInWithGoogle(){
@@ -2116,7 +2150,11 @@ async function signOutFromGoogle(){
 // ローカルの内容をクラウドに強制上書き（手動再同期ボタン）
 async function forcePushAllToCloud(){
   if(!isCloudReady()){ alert('未ログインです。'); return; }
-  if(!confirm('現在の端末の在庫データでクラウドを上書きします。よろしいですか？')) return;
+  if(!isOwnerUser()){
+    alert('「ローカル→クラウド上書き」はオーナーのみ実行できます。');
+    return;
+  }
+  if(!confirm('現在の端末の在庫データでクラウドを上書きします。\n他のスタッフの直近入力が消える可能性があります。よろしいですか？')) return;
   try{
     updateSyncStatus('アップロード中...');
     await cloudReplaceAllFromLocal();
@@ -2151,10 +2189,14 @@ function cloudItemRow(item){
   };
 }
 function cloudHistoryRow(h){
+  // Googleログイン中なら「誰が」を必ず Google 表示名/メールで確定（手入力上書き防止）
+  const gName  = currentAuthUser?.displayName || (currentAuthUser?.email||'').split('@')[0] || h.user || '未設定';
+  const gEmail = currentAuthUser?.email || '';
   return {
     id: h.id,
     type: String(h.type||''),
-    user: String(h.user||''),
+    user: gName,
+    userEmail: gEmail,           // 監査用：履歴一覧には表示しないが、後追い調査に使える
     itemId: String(h.itemId||''),
     itemName: String(h.itemName||''),
     qty: Number(h.qty||0),
@@ -2166,12 +2208,21 @@ function cloudHistoryRow(h){
   };
 }
 
+// ---- 共有データ場所を返す ----
+function shopRefs(){
+  const { db, collection } = window.__fb;
+  return {
+    itemsCol: collection(db, 'shops', SHOP_ID, 'items'),
+    histCol:  collection(db, 'shops', SHOP_ID, 'history')
+  };
+}
+
 // ---- 個別の書き込み（呼び出し箇所は既存のまま動く） ----
 async function cloudUpsertItem(item){
   if(!isCloudReady()) return;
   const { db, doc, setDoc } = window.__fb;
   await setDoc(
-    doc(db, 'users', currentAuthUser.uid, 'items', item.id),
+    doc(db, 'shops', SHOP_ID, 'items', item.id),
     cloudItemRow(item),
     { merge: true }
   );
@@ -2183,7 +2234,7 @@ async function cloudPushLatestHistory(h){
   if(!isCloudReady() || !h) return;
   const { db, doc, setDoc } = window.__fb;
   await setDoc(
-    doc(db, 'users', currentAuthUser.uid, 'history', String(h.id)),
+    doc(db, 'shops', SHOP_ID, 'history', String(h.id)),
     cloudHistoryRow(h),
     { merge: true }
   );
@@ -2193,9 +2244,8 @@ async function cloudPushLatestHistory(h){
 async function cloudReplaceAllFromLocal(){
   if(!isCloudReady()) return;
   const { db, doc, writeBatch, collection, getDocs } = window.__fb;
-  const uid = currentAuthUser.uid;
-  const itemsCol = collection(db, 'users', uid, 'items');
-  const histCol  = collection(db, 'users', uid, 'history');
+  const itemsCol = collection(db, 'shops', SHOP_ID, 'items');
+  const histCol  = collection(db, 'shops', SHOP_ID, 'history');
 
   // 既存のクラウド側を一旦消す（500ドキュメント毎にバッチ）
   const existingItems = await getDocs(itemsCol);
@@ -2233,9 +2283,8 @@ function startFirestoreSync(){
   if(!isCloudReady()) return;
   if(_firestoreUnsub) { try{ _firestoreUnsub(); }catch(e){} _firestoreUnsub = null; }
   const { db, collection, onSnapshot, query, orderBy, limit } = window.__fb;
-  const uid = currentAuthUser.uid;
-  const itemsCol = collection(db, 'users', uid, 'items');
-  const histCol  = collection(db, 'users', uid, 'history');
+  const itemsCol = collection(db, 'shops', SHOP_ID, 'items');
+  const histCol  = collection(db, 'shops', SHOP_ID, 'history');
 
   // items 購読
   const unsubItems = onSnapshot(itemsCol, snap => {
@@ -2317,12 +2366,36 @@ async function tryAutoConnectSupabase(){  // 名前は互換のため維持
   if(!window.__fb) return;
   updateSyncStatus('接続準備中...');
   const { auth, onAuthStateChanged } = window.__fb;
-  onAuthStateChanged(auth, user => {
+  onAuthStateChanged(auth, async user => {
     if(user){
       currentAuthUser = user;
       cloudEnabled = true;
+
+      // 許可リストチェック（ルールでも拒否されるが、画面でも先に案内）
+      if(!isStaffUser() && !isReadOnlyUser()){
+        updateSyncStatus('権限エラー: 許可されていないアカウント');
+        alert('このGoogleアカウント（' + (user.email||'') + '）はこのお店に許可されていません。\n\nオーナーに「許可リストに追加して」と伝えてください。');
+        try{ await window.__fb.signOut(window.__fb.auth); }catch(e){}
+        return;
+      }
+
+      // 履歴の「誰がやったか」を Google 表示名で自動更新（手動設定より優先）
+      const googleName = user.displayName || (user.email||'').split('@')[0] || '';
+      if(googleName){
+        state.user = state.user || {name:'',role:'担当者'};
+        state.user.name = googleName;
+        // オーナー判定で role も自動付与
+        state.user.role = isOwnerUser() ? '管理者' : (isReadOnlyUser() ? 'オーナー' /*=閲覧のみ*/ : '担当者');
+        saveState();
+        try{ renderUser(); }catch(e){}
+      }
+
       updateSyncStatus('接続中: '+(user.email||user.uid.slice(0,8)), true);
       updateAuthButtonsUI();
+
+      // 旧 users/{uid}/ にデータがあれば shops/{SHOP_ID}/ に一度だけ引っ越し
+      try { await migrateOldUserDataIfNeeded(); } catch(e) { console.warn('migrate skipped:', e); }
+
       startFirestoreSync();
     }else{
       currentAuthUser = null;
@@ -2332,6 +2405,53 @@ async function tryAutoConnectSupabase(){  // 名前は互換のため維持
       updateAuthButtonsUI();
     }
   });
+}
+
+// 旧データ場所(users/{uid}/) から新データ場所(shops/{SHOP_ID}/) への一度きり移行。
+// 移行条件: 新側が空 & 旧側にデータあり。終わったらフラグを localStorage に記録して
+// 同じ移行を二度しない（万一旧側を残しても新側が上書きされない）。
+async function migrateOldUserDataIfNeeded(){
+  if(!isCloudReady() || !isOwnerUser()) return; // オーナーのみが移行できる
+  const flagKey = 'rooftop_migrated_to_shops_v1';
+  if(localStorage.getItem(flagKey) === 'done') return;
+
+  const { db, collection, doc, getDocs, writeBatch } = window.__fb;
+  const uid = currentAuthUser.uid;
+  const oldItems = collection(db, 'users', uid, 'items');
+  const oldHist  = collection(db, 'users', uid, 'history');
+  const newItems = collection(db, 'shops', SHOP_ID, 'items');
+
+  let oldItemsSnap;
+  try{ oldItemsSnap = await getDocs(oldItems); }catch(e){ return; } // 権限なしなら静かに諦め
+  const newItemsSnap = await getDocs(newItems);
+  if(oldItemsSnap.empty || !newItemsSnap.empty){
+    localStorage.setItem(flagKey, 'done');
+    return;
+  }
+
+  console.log('☁ 旧 users/'+uid+' から shops/'+SHOP_ID+' へ移行中... ('+oldItemsSnap.size+' 商品)');
+  // items 移行
+  for(let i=0; i<oldItemsSnap.docs.length; i+=400){
+    const batch = writeBatch(db);
+    oldItemsSnap.docs.slice(i, i+400).forEach(d => {
+      batch.set(doc(newItems, d.id), d.data());
+    });
+    await batch.commit();
+  }
+  // history 移行（あれば）
+  try{
+    const oldHistSnap = await getDocs(oldHist);
+    const newHist = collection(db, 'shops', SHOP_ID, 'history');
+    for(let i=0; i<oldHistSnap.docs.length; i+=400){
+      const batch = writeBatch(db);
+      oldHistSnap.docs.slice(i, i+400).forEach(d => {
+        batch.set(doc(newHist, d.id), d.data());
+      });
+      await batch.commit();
+    }
+  }catch(e){ console.warn('history移行スキップ:', e); }
+  localStorage.setItem(flagKey, 'done');
+  toast('☁ 旧データを共有データベースへ引き越しました');
 }
 
 // 互換用エイリアス: 旧名で呼ばれていた箇所が動くように

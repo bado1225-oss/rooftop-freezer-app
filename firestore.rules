@@ -1,35 +1,72 @@
 // =====================================================================
-// rooftop-freezer-app Firestore セキュリティルール
+// rooftop-freezer-app Firestore セキュリティルール（共有モデル）
 //
-// 方針:
-//   - 認証済みユーザーは「自分のデータ」だけ読み書きできる
-//   - 他人のデータには絶対アクセスできない
-//   - 未認証は全拒否
+// データ場所:
+//   shops/{shopId}/items/{itemId}     ← 商品（freezerStock を埋め込み）
+//   shops/{shopId}/history/{historyId} ← 操作履歴
+//
+// 権限モデル:
+//   - オーナー(ownerEmail): 全権（読み・書き・削除）
+//   - スタッフ(staffEmails): 読み・作成・更新（履歴とアイテム）。削除は不可。
+//   - 閲覧のみ(readonlyEmails): 読みのみ
+//   - 上記いずれにも該当しないメール: 全拒否
 //
 // 使い方:
 //   Firebase Console → Firestore Database → 「ルール」タブ
-//   → このファイルの中身をそのままコピーして貼り付け → 公開
+//   → 中身をすべて削除して、このファイル全体をコピペ → 「公開」
+//
+//   スタッフが増減したら、ownerEmail / staffEmails / readonlyEmails の
+//   リストを編集して「公開」を押すだけ。
+//
+//   index.html 側の OWNER_EMAIL / STAFF_EMAILS / READONLY_EMAILS も
+//   合わせて更新するのを忘れずに（UIボタンの出し分けに使用）。
 // =====================================================================
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ユーザー自身のドキュメント
+    // ====== 許可リスト（編集する場所） ======
+    function ownerEmail()    { return 'bado1225@gmail.com'; }
+    function staffEmails()    { return []; }                       // 例: ['staff1@gmail.com']
+    function readonlyEmails() { return []; }                       // 例: ['view@gmail.com']
+
+    // ====== 判定ヘルパ ======
+    function authedEmail() {
+      return request.auth != null ? request.auth.token.email : '';
+    }
+    function isOwner()    { return authedEmail() == ownerEmail(); }
+    function isStaff()    { return isOwner() || (authedEmail() in staffEmails()); }
+    function canRead()    { return isStaff() || (authedEmail() in readonlyEmails()); }
+
+    // ====== ルール本体 ======
+    match /shops/{shopId} {
+      allow read: if canRead();
+
+      match /items/{itemId} {
+        allow read:           if canRead();
+        allow create, update: if isStaff();
+        allow delete:         if isOwner();  // 削除はオーナー専用
+      }
+
+      match /history/{historyId} {
+        allow read:           if canRead();
+        allow create:         if isStaff();
+        allow update, delete: if isOwner();  // 履歴の改ざん/削除はオーナー専用
+      }
+    }
+
+    // ====== 旧データ場所（移行用：オーナーが読み取れて、移行後に手動で削除可） ======
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
-
-      // 商品データ
       match /items/{itemId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
-
-      // 操作履歴
       match /history/{historyId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
     }
 
-    // それ以外はすべて拒否（重要）
+    // ====== それ以外はすべて拒否 ======
     match /{document=**} {
       allow read, write: if false;
     }
