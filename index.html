@@ -694,7 +694,7 @@
   <div id="itemModalContextBadge" style="margin-bottom:12px"></div>
   <div class="form-grid">
     <div class="field full"><label>商品名</label><input id="itemName"></div>
-    <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>餃子・点心</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
+    <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>餃子・点心</option><option>牛</option><option>豚</option><option>鶏</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
     <div class="field"><label>単位</label><select id="itemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
   </div>
 
@@ -774,7 +774,7 @@
     <div id="newItemSection" style="display:none;grid-column:1/-1">
       <div class="form-grid">
         <div class="field full"><label>商品名</label><input id="newFreezerItemName"></div>
-        <div class="field"><label>カテゴリ</label><select id="newFreezerItemCategory"><option>餃子・点心</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
+        <div class="field"><label>カテゴリ</label><select id="newFreezerItemCategory"><option>餃子・点心</option><option>牛</option><option>豚</option><option>鶏</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
         <div class="field"><label>単位</label><select id="newFreezerItemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
         <div class="field"><label>最低在庫数</label><input id="newFreezerItemMin" type="number" min="0" max="9999"></div>
         <div class="field"><label>最大在庫数</label><input id="newFreezerItemMax" type="number" min="0" max="9999"></div>
@@ -861,9 +861,15 @@ const initialState={user:{name:'松浦',role:'管理者'},items:[
 //   `let state=loadState()` よりも前に宣言しておく必要がある（temporal dead zone対策）
 const ITEM_TO_CATEGORY = {
   '旨辛餃子':'餃子・点心', '炭火焼餃子':'餃子・点心', '旨辛餡':'餃子・点心',
-  '牛タン':'肉類', 'しし肉':'肉類', '種鶏':'肉類', '銀皮':'肉類', '豚脂':'肉類',
+  // 牛/豚/鶏 に分類
+  '牛タン':'牛', '牛すじ':'牛',
+  '豚脂':'豚',
+  '種鶏':'鶏', 'せせり':'鶏', '鶏油':'鶏',
+  // 牛/豚/鶏 のどれにも当てはまらない肉は「肉類」に残す
+  'しし肉':'肉類', '銀皮':'肉類',
+  // 魚類・加工食品
   'メヒカリ':'魚類', 'ほっけ':'魚類', 'はまゆう':'魚類',
-  'カレー':'加工食品', 'ひつまぶし':'加工食品', '鶏油':'加工食品', '牛すじ':'加工食品', 'せせり':'加工食品'
+  'カレー':'加工食品', 'ひつまぶし':'加工食品'
 };
 function autoCategorizeIfDefault(item){
   if(!item || !item.name) return;
@@ -885,10 +891,13 @@ function toggleItemExpand(id){
   renderFreezers();
   renderStoreFreezer();
 }
-// カテゴリごとの色とアイコン（添付スクショの彩りに合わせて）
+// カテゴリごとの色とアイコン
 const CATEGORY_STYLES = {
   '餃子・点心': { bg:'#dc2626', text:'#fff', icon:'🥟' },   // 赤
-  '肉類':      { bg:'#b45309', text:'#fff', icon:'🥩' },   // 焦茶
+  '牛':        { bg:'#991b1b', text:'#fff', icon:'🐄' },   // 濃い赤茶
+  '豚':        { bg:'#ec4899', text:'#fff', icon:'🐖' },   // ピンク
+  '鶏':        { bg:'#f59e0b', text:'#fff', icon:'🐓' },   // 黄/山吹
+  '肉類':      { bg:'#b45309', text:'#fff', icon:'🥩' },   // 焦茶（牛/豚/鶏に分類できない肉用）
   '魚類':      { bg:'#0284c7', text:'#fff', icon:'🐟' },   // 水色
   '加工食品':   { bg:'#16a34a', text:'#fff', icon:'🍱' },   // 緑
   // 旧カテゴリ（互換用）
@@ -1551,7 +1560,7 @@ function renderUnifiedItemList(opts){
     (byCategory[c] = byCategory[c] || []).push(it);
   }
   // 表示順
-  const PREFERRED_ORDER = ['餃子・点心','肉類','魚類','加工食品','冷凍食材','冷凍惣菜','包材','その他'];
+  const PREFERRED_ORDER = ['餃子・点心','牛','豚','鶏','肉類','魚類','加工食品','冷凍食材','冷凍惣菜','包材','その他'];
   const orderedCats = PREFERRED_ORDER
     .filter(c => byCategory[c])
     .concat(Object.keys(byCategory).filter(c => !PREFERRED_ORDER.includes(c)));
@@ -2500,6 +2509,8 @@ function startFirestoreSync(){
     saveState();
     rerenderAllViews();
     updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true);
+    // 一度きり: 旧『肉類』『加工食品』のうち牛/豚/鶏に分類できるものを自動移行
+    try { migrateMeatCategoriesIfNeeded(); } catch(e) { console.warn('meat migrate skipped:', e); }
   }, err => {
     console.error('items onSnapshot error:', err);
     updateSyncStatus('同期エラー');
@@ -2634,6 +2645,45 @@ async function migrateOldUserDataIfNeeded(){
   }catch(e){ console.warn('history移行スキップ:', e); }
   localStorage.setItem(flagKey, 'done');
   toast('☁ 旧データを共有データベースへ引き越しました');
+}
+
+// 既存の 肉類/加工食品 商品のうち、ITEM_TO_CATEGORY で 牛/豚/鶏 が判明している
+// ものを自動でそのカテゴリに振り分ける。一度きり、オーナーのみ実行（クラウド書き込みが必要なため）。
+async function migrateMeatCategoriesIfNeeded(){
+  const flagKey = 'rooftop_meat_categorized_v1';
+  if(localStorage.getItem(flagKey) === 'done') return;
+  if(!isCloudReady() || !isOwnerUser()) return;  // スタッフ環境では実行しない（権限＆同期競合回避）
+
+  const MEAT_CATS = new Set(['牛','豚','鶏']);
+  const changed = [];
+  (state.items||[]).forEach(item => {
+    const known = ITEM_TO_CATEGORY[String(item.name||'').trim()];
+    if(known && MEAT_CATS.has(known) && item.category !== known){
+      item.category = known;
+      changed.push(item);
+    }
+  });
+
+  if(changed.length === 0){
+    localStorage.setItem(flagKey, 'done');
+    return;
+  }
+
+  // ローカル反映
+  saveState();
+  rerenderAllViews();
+
+  // クラウドに反映（1件ずつ upsert）
+  try{
+    for(const item of changed){
+      await cloudUpsertItem(item);
+    }
+    localStorage.setItem(flagKey, 'done');
+    toast('🐄🐖🐓 '+changed.length+'件のカテゴリを 牛/豚/鶏 に振り分けました');
+  }catch(e){
+    console.error('meat migration cloud sync failed:', e);
+    // フラグは付けない → 次回起動時に再試行
+  }
 }
 
 // 互換用エイリアス: 旧名で呼ばれていた箇所が動くように
