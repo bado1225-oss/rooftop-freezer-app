@@ -25,7 +25,7 @@
       --shadow:0 10px 30px rgba(0,0,0,.08); --radius:18px;
     }
     *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;background:var(--bg);color:var(--text)}
-    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px 32px}
+    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
     .header{position:sticky;top:0;z-index:50;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -16px 12px;padding:14px 16px}
     .header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
     /* zaiko-app 互換のヘッダー */
@@ -121,7 +121,7 @@
       .cat-icon{font-size:18px}
     }
     /* 右下の新規追加 FAB */
-    .fab-add{position:fixed;right:20px;bottom:max(env(safe-area-inset-bottom),20px);width:58px;height:58px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:28px;font-weight:900;box-shadow:0 8px 24px rgba(29,78,216,.4);cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background .15s}
+    .fab-add{position:fixed;right:20px;bottom:calc(72px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:28px;font-weight:900;box-shadow:0 8px 24px rgba(29,78,216,.4);cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background .15s}
     .fab-add:hover,.fab-add:active{background:var(--primary2);transform:scale(1.05)}
     .title{font-size:24px;font-weight:800;margin:0} .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
     .role-chip{padding:10px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);font-size:12px;font-weight:700}
@@ -337,8 +337,27 @@
     .legend-dot.f2{background:var(--fz2-accent)}
     .legend-dot.f3{background:var(--fz3-accent)}
     .legend-dot.f4{background:var(--fz4-accent)}
-    .toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:999px;font-size:13px;font-weight:700;display:none;z-index:120}
-    .toast.show{display:block}
+    .toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:999px;font-size:13px;font-weight:700;display:none;z-index:120;align-items:center;gap:10px;max-width:92vw;white-space:nowrap}
+    .toast.show{display:flex}
+    .toast-undo-btn{background:#fff;color:#111827;border:none;border-radius:999px;padding:6px 14px;font-size:12px;font-weight:900;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+
+    /* ===== 下部ナビバー（スマホの親指操作用） ===== */
+    .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(15,23,42,.08);padding-bottom:env(safe-area-inset-bottom)}
+    .bottom-nav-btn{flex:1;border:none;background:transparent;padding:8px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-weight:800;color:var(--muted);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .bottom-nav-btn .bn-icon{font-size:21px;line-height:1.2}
+    .bottom-nav-btn.active{color:var(--primary)}
+    .bottom-nav-btn.active .bn-icon{transform:scale(1.12)}
+    .bottom-nav-btn:active{background:var(--bg)}
+
+    /* ===== ヘッダーの同期状態チップ ===== */
+    .sync-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;font-size:10px;font-weight:800;white-space:nowrap;border:1px solid}
+    .sync-chip.on{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+    .sync-chip.off{background:#fef3c7;color:#92400e;border-color:#fde68a}
+
+    /* ===== 在庫数タップで±1（カード非展開のまま） ===== */
+    .zc-qty-block{cursor:pointer;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .15s}
+    .zc-qty-block:active{background:#eef2f7}
+    .zc-quick-inline{border-top:1px dashed var(--zc-line);background:#fbfdff;padding:10px 14px}
     @media (max-width:700px){.grid.kpis{grid-template-columns:repeat(2,1fr)}.qty-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.title{font-size:21px}.app{padding:12px 12px 120px}.header{margin:0 -12px 12px;padding:12px}}
     /* ===== スマホ最適化カード ===== */
     .item.mc-card{padding:0;overflow:hidden}
@@ -534,7 +553,10 @@
         <button class="header-icon-btn" id="headerBtnSettings" onclick="switchView('settings')" aria-label="設定" title="設定">⚙️</button>
       </div>
     </div>
-    <div class="header-sub" id="userChip" style="font-size:11px;color:var(--muted);margin-top:4px">利用者: 管理者</div>
+    <div class="header-sub" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      <span id="userChip" style="font-size:11px;color:var(--muted)">利用者: 管理者</span>
+      <span class="sync-chip off" id="headerSyncChip">⚠ 未同期</span>
+    </div>
   </div>
 
   <!-- 在庫ダッシュボード (zaiko-app風) -->
@@ -807,6 +829,14 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- 下部ナビバー（親指で届く位置に主要4画面） -->
+<nav class="bottom-nav" id="bottomNav">
+  <button class="bottom-nav-btn active" data-tab="freezers" onclick="switchView('freezers')"><span class="bn-icon">🏠</span>屋上</button>
+  <button class="bottom-nav-btn" data-tab="store-freezers" onclick="switchView('store-freezers')"><span class="bn-icon">🏪</span>店舗</button>
+  <button class="bottom-nav-btn" data-tab="history" onclick="switchView('history')"><span class="bn-icon">🕘</span>履歴</button>
+  <button class="bottom-nav-btn" data-tab="settings" onclick="switchView('settings')"><span class="bn-icon">⚙️</span>設定</button>
+</nav>
+
 <!-- クイックアクションシート（入庫・補充用ボトムシート） -->
 <div class="qs-wrap" id="qsWrap" onclick="if(event.target===this)closeQs()">
   <div class="qs-panel"><div id="qsContent"></div></div>
@@ -888,6 +918,19 @@ let expandedItemIds = new Set();
 function toggleItemExpand(id){
   if(expandedItemIds.has(id)) expandedItemIds.delete(id);
   else expandedItemIds.add(id);
+  quickStepItemIds.delete(id); // 展開したらクイック±1は閉じる（二重表示防止）
+  renderFreezers();
+  renderStoreFreezer();
+}
+// 在庫数タップで出す「クイック±1」パネル（カードを開かずに調整できる）
+let quickStepItemIds = new Set();
+function toggleQuickStep(id){
+  if(expandedItemIds.has(id)){
+    // 展開中は詳細パネル内に±1があるので何もしない
+    return;
+  }
+  if(quickStepItemIds.has(id)) quickStepItemIds.delete(id);
+  else quickStepItemIds.add(id);
   renderFreezers();
   renderStoreFreezer();
 }
@@ -952,7 +995,7 @@ function feedbackErr(){
 }
 
 // ====== ワンタップ ±1 在庫調整（モーダル無し・現場最速） ======
-async function quickAdjust(itemId, freezerCode, delta){
+async function quickAdjust(itemId, freezerCode, delta, offerUndo=true){
   if(state.user.role==='オーナー'){ alert('オーナー権限では在庫操作はできません。'); return; }
   const item = state.items.find(i => i.id === itemId);
   if(!item){ feedbackErr(); return; }
@@ -964,12 +1007,19 @@ async function quickAdjust(itemId, freezerCode, delta){
   // 履歴: ＋1 は入庫、－1 は 屋上=使用 / 店舗=使用
   const fzName = freezerName(freezerCode);
   if(delta > 0){
-    addHistory('入庫', item, delta, '仕入れ', fzName);
+    addHistory(offerUndo?'入庫':'取消', item, delta, '仕入れ', fzName);
   }else{
-    addHistory('使用', item, -delta, fzName, '使用');
+    addHistory(offerUndo?'使用':'取消', item, -delta, fzName, '使用');
   }
   feedbackOk();
-  toast(`${delta>0?'＋':'−'}${Math.abs(delta)}${item.unit}（${fzName}）`);
+  const msg=`${delta>0?'＋':'−'}${Math.abs(delta)}${item.unit}（${fzName}）`;
+  if(offerUndo){
+    // 取り消しは「逆方向の±1」を記録する方式。履歴を消さないので
+    // スタッフ権限でも安全に動き、監査の足跡も残る。
+    toastWithUndo(msg, () => quickAdjust(itemId, freezerCode, -delta, /*offerUndo*/false));
+  }else{
+    toast('↩ 取り消しました');
+  }
   saveState();
   rerenderAllViews();
   if(isCloudReady()){
@@ -1105,7 +1155,29 @@ function saveState(){
   state.items = deduplicateItems(state.items);
   localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
 }
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200)}
+let _toastTimer=null;
+function _showToast(msg, btnLabel, btnFn){
+  const el=document.getElementById('toast');
+  el.innerHTML='';
+  const span=document.createElement('span');
+  span.textContent=msg;
+  el.appendChild(span);
+  if(btnLabel && btnFn){
+    const b=document.createElement('button');
+    b.className='toast-undo-btn';
+    b.type='button';
+    b.textContent=btnLabel;
+    b.onclick=()=>{ el.classList.remove('show'); btnFn(); };
+    el.appendChild(b);
+  }
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  // ボタン付きは押す猶予を長めに取る
+  _toastTimer=setTimeout(()=>el.classList.remove('show'), btnLabel?6000:2200);
+}
+function toast(msg){_showToast(msg,null,null)}
+// タップミス対策: 直前の±1を1タップで取り消せるトースト
+function toastWithUndo(msg, undoFn){_showToast(msg,'元に戻す',undoFn)}
 function getFreezerVisibility(item, freezerCode){
   if(!item.visibleInFreezers) return true;
   if(typeof item.visibleInFreezers[freezerCode] === 'boolean') return item.visibleInFreezers[freezerCode];
@@ -1242,6 +1314,12 @@ function formatDate(ts){return new Date(ts).toLocaleString('ja-JP',{month:'numer
 function todayCount(){const today=new Date().toDateString(); return state.history.filter(h=>new Date(h.time).toDateString()===today).length}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function updateSyncStatus(text, connected=false){
+  // ヘッダー常駐の同期チップ（どの画面でも同期状態が見える）
+  const chip=document.getElementById('headerSyncChip');
+  if(chip){
+    chip.textContent = connected ? '☁ 同期中' : '⚠ 未同期';
+    chip.className = 'sync-chip ' + (connected ? 'on' : 'off');
+  }
   const el=document.getElementById('syncStatus'); if(!el)return;
   el.textContent=text; el.style.background=connected?'#dcfce7':'#f3f4f6'; el.style.color=connected?'#166534':'#374151';
   if(connected){ try{ localStorage.setItem('rooftop_last_sync_status', text); }catch(e){} }
@@ -1251,8 +1329,7 @@ function restoreLastSyncStatusOptimistic(){
   try{
     const last = localStorage.getItem('rooftop_last_sync_status');
     if(!last) return;
-    const el = document.getElementById('syncStatus');
-    if(el){ el.textContent = last; el.style.background = '#dcfce7'; el.style.color = '#166534'; }
+    updateSyncStatus(last, true);  // ヘッダーチップも一緒に楽観表示
   }catch(e){}
 }
 function openModal(id){const el=document.getElementById(id); if(el) el.classList.add('open')}
@@ -1635,13 +1712,21 @@ function renderUnifiedItemList(opts){
           <div class="zc-name">${escapeHtml(item.name)}<span style="font-size:11px;color:#9ca3af;font-weight:600;margin-left:6px">・${escapeHtml(item.category||'')}</span></div>
           <div class="zc-tags">${chips || '<span style="font-size:11px;color:#9ca3af">登録のみ・在庫なし</span>'}</div>
         </div>
-        <div class="zc-qty-block">
+        <div class="zc-qty-block" onclick="event.stopPropagation();toggleQuickStep('${item.id}')" title="タップで±1">
           <div class="zc-qty-num ${qtyClass}">${total}</div>
           <div class="zc-qty-unit">${item.unit}</div>
           <span class="zc-status-dot ${status}">${statusLabel}</span>
         </div>
         <div class="zc-caret">▼</div>
       </div>
+      ${(!isExpanded && quickStepItemIds.has(item.id)) ? `
+      <div class="zc-quick-inline" onclick="event.stopPropagation()">
+        <div class="zc-quick-step-row" style="margin-bottom:0">
+          <button class="zc-quick-btn-wide minus" type="button" onclick="event.stopPropagation();quickAdjust('${item.id}','${defFreezer}',-1)">－1 ${item.unit}</button>
+          <div class="zc-quick-info">${escapeHtml(freezerName(defFreezer)||'')}</div>
+          <button class="zc-quick-btn-wide plus" type="button" onclick="event.stopPropagation();quickAdjust('${item.id}','${defFreezer}',1)">＋1 ${item.unit}</button>
+        </div>
+      </div>` : ''}
       ${detail}
     </div>`;
   };
@@ -3345,6 +3430,9 @@ function switchView(tabId, keepFilter){
   document.querySelectorAll('.main-segment-btn').forEach(x=>x.classList.remove('active'));
   const segBtn=document.querySelector('.main-segment-btn[data-tab="'+tabId+'"]');
   if(segBtn) segBtn.classList.add('active');
+
+  // 下部ナビバーの active 状態
+  document.querySelectorAll('.bottom-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabId));
 
   // 履歴/設定のヘッダーアイコンの active 状態
   const headerHistory=document.getElementById('headerBtnHistory');
