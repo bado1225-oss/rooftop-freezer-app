@@ -358,6 +358,30 @@
     .zc-qty-block{cursor:pointer;border-radius:10px;padding:4px 6px;margin:-4px -6px;transition:background .15s}
     .zc-qty-block:active{background:#eef2f7}
     .zc-quick-inline{border-top:1px dashed var(--zc-line);background:#fbfdff;padding:10px 14px}
+    /* ===== 並び替えモード ===== */
+    .reorder-toolbar{align-items:center}
+    .reorder-toggle{flex-shrink:0;border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;background:#fff;font-size:13px;font-weight:800;color:var(--primary);cursor:pointer;min-height:44px;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .reorder-toggle.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .reorder-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;border-radius:12px;padding:10px 14px;margin:0 0 12px;font-size:13px;font-weight:800}
+    .reorder-done{flex-shrink:0;border:none;border-radius:999px;background:var(--primary);color:#fff;padding:7px 16px;font-size:12px;font-weight:900;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .reorder-card{margin:0 12px 8px;border:1px solid var(--zc-line);border-radius:12px;background:#fff}
+    .reorder-row{gap:10px;padding:12px 14px}
+    .reorder-btns{display:flex;gap:8px;flex-shrink:0}
+    .reorder-btn{width:46px;height:46px;border-radius:10px;border:2px solid var(--primary);background:#eef2ff;color:var(--primary);font-size:18px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .reorder-btn:active{transform:scale(.94)}
+    .reorder-btn:disabled{opacity:.3;border-color:#cbd5e1;color:#94a3b8;background:#f1f5f9;cursor:default}
+    /* ===== カテゴリ管理（設定画面） ===== */
+    .cat-setting-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;margin-bottom:8px;background:#fff}
+    .cat-setting-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:8px;font-size:14px;font-weight:800;flex-shrink:0}
+    .cat-setting-name{flex:1;min-width:0;font-size:14px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .cat-setting-actions{display:flex;gap:6px;flex-shrink:0}
+    .cat-setting-btn{width:38px;height:38px;border-radius:9px;border:1px solid var(--line);background:#fff;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .cat-setting-btn:active{background:var(--bg)}
+    .cat-setting-btn:disabled{opacity:.3;cursor:default}
+    .cat-setting-btn.del{color:#dc2626;border-color:#fecaca}
+    .color-palette{display:flex;flex-wrap:wrap;gap:8px}
+    .color-swatch{width:40px;height:40px;border-radius:10px;border:3px solid transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .color-swatch.selected{border-color:#111827;box-shadow:0 0 0 2px #fff inset}
     @media (max-width:700px){.grid.kpis{grid-template-columns:repeat(2,1fr)}.qty-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.title{font-size:21px}.app{padding:12px 12px 120px}.header{margin:0 -12px 12px;padding:12px}}
     /* ===== スマホ最適化カード ===== */
     .item.mc-card{padding:0;overflow:hidden}
@@ -606,10 +630,11 @@
 
   <section class="view active" id="view-freezers">
     <div class="card">
-      <div class="toolbar">
+      <div class="toolbar reorder-toolbar">
         <select id="searchFreezer" class="search-select" autocomplete="off">
           <option value="">商品名検索　▼</option>
         </select>
+        <button class="reorder-toggle" id="reorderToggleRoof" type="button" onclick="toggleReorderMode()">≡ 並び替え</button>
       </div>
       <div class="fz-filter-row" id="fzSubFilter">
         <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
@@ -625,10 +650,11 @@
 
   <section class="view" id="view-store-freezers">
     <div class="card">
-      <div class="toolbar">
+      <div class="toolbar reorder-toolbar">
         <select id="searchStoreFreezer" class="search-select" autocomplete="off">
           <option value="">商品名検索　▼</option>
         </select>
+        <button class="reorder-toggle" id="reorderToggleStore" type="button" onclick="toggleReorderMode()">≡ 並び替え</button>
       </div>
       <div class="fz-filter-row" id="sfSubFilter">
         <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
@@ -696,6 +722,14 @@
             <div class="field"><label>権限</label><select id="userRoleInput"><option value="管理者">管理者</option><option value="担当者">担当者</option><option value="オーナー">オーナー</option></select></div>
           </div>
           <div class="modal-actions"><button class="primary" onclick="saveUserSettings()">利用者設定を保存</button></div>
+        </div>
+        <div class="item ok" style="margin-top:0">
+          <div class="name">カテゴリの管理</div>
+          <div class="meta">商品の分類（牛・豚・鶏など）を自由に追加・名前変更・並び替え・削除できます。色も選べます。</div>
+          <div id="categorySettingsList" style="margin-top:12px"></div>
+          <div class="modal-actions" style="margin-top:10px">
+            <button class="primary" onclick="openCategoryEditor()">＋ カテゴリを追加</button>
+          </div>
         </div>
         <div class="item high">
           <div class="name">データ操作</div>
@@ -827,6 +861,21 @@
 
 <!-- ※ 旧Supabase接続設定モーダルは Firebase 移行に伴い削除 -->
 
+<!-- カテゴリ編集モーダル（追加 / 名前変更 / 色・アイコン） -->
+<div class="modal-wrap" id="categoryModalWrap"><div class="modal">
+  <h3 id="categoryModalTitle">カテゴリを追加</h3>
+  <input type="hidden" id="categoryEditOriginalName">
+  <div class="form-grid">
+    <div class="field"><label>アイコン（絵文字1つ）</label><input id="categoryIconInput" maxlength="4" placeholder="🥩"></div>
+    <div class="field"><label>カテゴリ名</label><input id="categoryNameInput" placeholder="例: 牛タン類"></div>
+    <div class="field full"><label>色を選ぶ</label><div class="color-palette" id="categoryColorPalette"></div></div>
+  </div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('categoryModalWrap')">閉じる</button>
+    <button class="primary" onclick="saveCategoryFromEditor()">保存する</button>
+  </div>
+</div></div>
+
 <div class="toast" id="toast"></div>
 
 <!-- 下部ナビバー（親指で届く位置に主要4画面） -->
@@ -910,9 +959,96 @@ function autoCategorizeIfDefault(item){
   }
 }
 
+// カテゴリの初期定義（設定画面で自由に追加・変更・並び替え・削除できる）
+// state.categories が無い時のデフォルト。normalizeState→loadState から参照されるため
+// `let state=loadState()` より前に宣言する（temporal dead zone 対策）。
+const DEFAULT_CATEGORIES = [
+  { name:'餃子・点心', bg:'#dc2626', text:'#fff', icon:'🥟' },
+  { name:'牛',        bg:'#991b1b', text:'#fff', icon:'🐄' },
+  { name:'豚',        bg:'#ec4899', text:'#fff', icon:'🐖' },
+  { name:'鶏',        bg:'#f59e0b', text:'#fff', icon:'🐓' },
+  { name:'肉類',      bg:'#b45309', text:'#fff', icon:'🥩' },
+  { name:'魚類',      bg:'#0284c7', text:'#fff', icon:'🐟' },
+  { name:'加工食品',   bg:'#16a34a', text:'#fff', icon:'🍱' },
+  { name:'その他',    bg:'#a855f7', text:'#fff', icon:'🏷️' }
+];
+// 旧カテゴリ名（互換用）の色を補完するためのフォールバック表
+const LEGACY_CATEGORY_STYLES = {
+  '冷凍食材': { bg:'#3b82f6', text:'#fff', icon:'❄️' },
+  '冷凍惣菜': { bg:'#16a34a', text:'#fff', icon:'🍱' },
+  '包材':    { bg:'#a16207', text:'#fff', icon:'📦' }
+};
+// カテゴリ選択肢として使える色パレット（設定画面のボタン用）
+const CATEGORY_COLOR_PALETTE = [
+  '#dc2626','#991b1b','#ec4899','#f59e0b','#b45309','#0284c7',
+  '#16a34a','#3b82f6','#a855f7','#0d9488','#65a30d','#475569'
+];
+
 let state=loadState(),editingItemId=null,moveMode='toStore',prefillItemId=null,prefillFreezerCode=null,currentFreezerContext=null;
 // ダッシュボードKPIからのフィルター: null | 'order'（屋上で不足）| 'refill'（店舗で不足）
 let dashboardFilter=null;
+// 並び替えモード（ON の間は各商品に▲▼ボタンを表示し、タップ展開を無効化）
+let reorderMode=false;
+function toggleReorderMode(){
+  reorderMode = !reorderMode;
+  if(reorderMode){
+    // ONにした瞬間、今見えている順を sortIndex として固定（以降▲▼で入れ替え）
+    ensureSortIndices();
+    expandedItemIds.clear();
+    quickStepItemIds.clear();
+  }
+  rerenderAllViews();
+}
+// 全商品に、現在のカテゴリ内表示順で連番 sortIndex を振る（未設定のものを埋める）
+function ensureSortIndices(){
+  const unified = buildUnifiedItems(state.items);
+  const byCat = {};
+  unified.forEach(it => {
+    const c=(it.category||'その他').trim()||'その他';
+    (byCat[c]=byCat[c]||[]).push(it);
+  });
+  Object.values(byCat).forEach(list => {
+    list.sort((a,b)=>{
+      const ka=(a.sortIndex!=null)?a.sortIndex:1e9;
+      const kb=(b.sortIndex!=null)?b.sortIndex:1e9;
+      return ka-kb || a.name.localeCompare(b.name,'ja');
+    });
+    list.forEach((it,idx) => setSortIndexByName(it.name, idx));
+  });
+  saveState();
+}
+// 同名の実item全てに sortIndex を書き込む（表示用unifiedは名前で統合されるため）
+function setSortIndexByName(name, idx){
+  const key=String(name||'').trim().toLowerCase();
+  state.items.forEach(it=>{ if(String(it.name||'').trim().toLowerCase()===key) it.sortIndex=idx; });
+}
+// 商品をカテゴリ内で上(dir=-1)/下(dir=+1)に移動
+function moveItemInCategory(itemId, dir){
+  const rep = buildUnifiedItems(state.items).find(i=>i.id===itemId);
+  if(!rep) return;
+  const cat=(rep.category||'その他').trim()||'その他';
+  ensureSortIndices(); // 念のため全商品に連番を保証
+  const list = buildUnifiedItems(state.items)
+    .filter(i=>(i.category||'その他').trim()===cat)
+    .sort((a,b)=>(a.sortIndex??1e9)-(b.sortIndex??1e9) || a.name.localeCompare(b.name,'ja'));
+  const idx = list.findIndex(i=>i.id===itemId);
+  const swapWith = dir<0 ? idx-1 : idx+1;
+  if(idx<0 || swapWith<0 || swapWith>=list.length){ feedbackErr(); return; }
+  const a=list[idx], b=list[swapWith];
+  const ai=a.sortIndex, bi=b.sortIndex;
+  setSortIndexByName(a.name, bi);
+  setSortIndexByName(b.name, ai);
+  feedbackOk();
+  saveState();
+  rerenderAllViews();
+  // クラウド同期（入れ替えた2商品）
+  if(isCloudReady()){
+    [a.name, b.name].forEach(nm=>{
+      const real=state.items.find(it=>String(it.name||'').trim().toLowerCase()===String(nm||'').trim().toLowerCase());
+      if(real) cloudUpsertItem(real).catch(console.error);
+    });
+  }
+}
 // 一覧で展開中の商品ID（クリックで詳細表示）
 let expandedItemIds = new Set();
 function toggleItemExpand(id){
@@ -934,23 +1070,157 @@ function toggleQuickStep(id){
   renderFreezers();
   renderStoreFreezer();
 }
-// カテゴリごとの色とアイコン
-const CATEGORY_STYLES = {
-  '餃子・点心': { bg:'#dc2626', text:'#fff', icon:'🥟' },   // 赤
-  '牛':        { bg:'#991b1b', text:'#fff', icon:'🐄' },   // 濃い赤茶
-  '豚':        { bg:'#ec4899', text:'#fff', icon:'🐖' },   // ピンク
-  '鶏':        { bg:'#f59e0b', text:'#fff', icon:'🐓' },   // 黄/山吹
-  '肉類':      { bg:'#b45309', text:'#fff', icon:'🥩' },   // 焦茶（牛/豚/鶏に分類できない肉用）
-  '魚類':      { bg:'#0284c7', text:'#fff', icon:'🐟' },   // 水色
-  '加工食品':   { bg:'#16a34a', text:'#fff', icon:'🍱' },   // 緑
-  // 旧カテゴリ（互換用）
-  '冷凍食材':   { bg:'#3b82f6', text:'#fff', icon:'❄️' },   // 青
-  '冷凍惣菜':   { bg:'#16a34a', text:'#fff', icon:'🍱' },   // 緑
-  '包材':      { bg:'#a16207', text:'#fff', icon:'📦' },   // 茶
-  'その他':    { bg:'#a855f7', text:'#fff', icon:'🏷️' }    // 紫
-};
+// カテゴリ名 → スタイル を返す（state.categories を最優先）
 function categoryStyle(cat){
-  return CATEGORY_STYLES[cat] || { bg:'#475569', text:'#fff', icon:'📁' };
+  const list = (state && Array.isArray(state.categories)) ? state.categories : DEFAULT_CATEGORIES;
+  const found = list.find(c => c.name === cat);
+  if(found) return found;
+  if(LEGACY_CATEGORY_STYLES[cat]) return LEGACY_CATEGORY_STYLES[cat];
+  return { bg:'#475569', text:'#fff', icon:'📁' };
+}
+// 現在のカテゴリ一覧（名前の配列）。表示順 = state.categories の順。
+function categoryNames(){
+  const list = (state && Array.isArray(state.categories)) ? state.categories : DEFAULT_CATEGORIES;
+  return list.map(c => c.name);
+}
+
+// ===== カテゴリ管理（設定画面） =====
+// 設定画面のカテゴリ一覧を描画
+function renderCategorySettings(){
+  const wrap = document.getElementById('categorySettingsList');
+  if(!wrap) return;
+  const cats = (state.categories||DEFAULT_CATEGORIES);
+  // 各カテゴリに属する商品数（unified）
+  const counts = {};
+  buildUnifiedItems(state.items).forEach(it=>{
+    const c=(it.category||'その他').trim()||'その他';
+    counts[c]=(counts[c]||0)+1;
+  });
+  wrap.innerHTML = cats.map((c,idx)=>{
+    const cnt = counts[c.name]||0;
+    return `<div class="cat-setting-row">
+      <span class="cat-setting-chip" style="background:${c.bg};color:${c.text}">${c.icon} ${escapeHtml(c.name)}</span>
+      <span class="cat-setting-name">${cnt}件</span>
+      <div class="cat-setting-actions">
+        <button class="cat-setting-btn" type="button" ${idx===0?'disabled':''} onclick="moveCategoryOrder('${escapeHtml(c.name)}',-1)" aria-label="上へ">▲</button>
+        <button class="cat-setting-btn" type="button" ${idx===cats.length-1?'disabled':''} onclick="moveCategoryOrder('${escapeHtml(c.name)}',1)" aria-label="下へ">▼</button>
+        <button class="cat-setting-btn" type="button" onclick="openCategoryEditor('${escapeHtml(c.name)}')" aria-label="編集">✏️</button>
+        <button class="cat-setting-btn del" type="button" onclick="deleteCategory('${escapeHtml(c.name)}')" aria-label="削除">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+let _categoryEditorColor = CATEGORY_COLOR_PALETTE[0];
+// カテゴリ編集モーダルを開く（name未指定=新規追加）
+function openCategoryEditor(name){
+  const cats = state.categories||DEFAULT_CATEGORIES;
+  const existing = name ? cats.find(c=>c.name===name) : null;
+  document.getElementById('categoryModalTitle').textContent = existing ? 'カテゴリを編集' : 'カテゴリを追加';
+  document.getElementById('categoryEditOriginalName').value = existing ? existing.name : '';
+  document.getElementById('categoryNameInput').value = existing ? existing.name : '';
+  document.getElementById('categoryIconInput').value = existing ? existing.icon : '🏷️';
+  _categoryEditorColor = existing ? existing.bg : CATEGORY_COLOR_PALETTE[0];
+  // カラーパレット描画
+  const pal = document.getElementById('categoryColorPalette');
+  pal.innerHTML = CATEGORY_COLOR_PALETTE.map(col =>
+    `<div class="color-swatch ${col===_categoryEditorColor?'selected':''}" style="background:${col}" onclick="selectCategoryColor('${col}')"></div>`
+  ).join('');
+  openModal('categoryModalWrap');
+}
+function selectCategoryColor(col){
+  _categoryEditorColor = col;
+  document.querySelectorAll('#categoryColorPalette .color-swatch').forEach(sw=>{
+    sw.classList.toggle('selected', sw.style.background === col || rgbToHex(sw.style.background)===col);
+  });
+}
+function rgbToHex(rgb){
+  const m = String(rgb).match(/\d+/g);
+  if(!m || m.length<3) return rgb;
+  return '#'+m.slice(0,3).map(n=>Number(n).toString(16).padStart(2,'0')).join('');
+}
+// カテゴリ保存（追加 or 名前変更）
+function saveCategoryFromEditor(){
+  const orig = document.getElementById('categoryEditOriginalName').value;
+  const newName = document.getElementById('categoryNameInput').value.trim();
+  const icon = document.getElementById('categoryIconInput').value.trim() || '🏷️';
+  if(!newName){ alert('カテゴリ名を入力してください。'); return; }
+  state.categories = state.categories || JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  // 重複チェック（自分以外に同名）
+  if(state.categories.some(c=>c.name===newName && c.name!==orig)){
+    alert(`「${newName}」は既に存在します。`); return;
+  }
+  if(orig){
+    // 名前変更：カテゴリ定義を更新し、所属商品の category も付け替える
+    const cat = state.categories.find(c=>c.name===orig);
+    if(cat){ cat.name=newName; cat.icon=icon; cat.bg=_categoryEditorColor; cat.text='#fff'; }
+    if(orig!==newName){
+      state.items.forEach(it=>{ if((it.category||'')===orig) it.category=newName; });
+    }
+  }else{
+    // 新規追加（末尾）
+    state.categories.push({ name:newName, bg:_categoryEditorColor, text:'#fff', icon });
+  }
+  saveState();
+  closeModal('categoryModalWrap');
+  renderCategorySettings();
+  rerenderAllViews();
+  fillCategorySelects();
+  cloudSaveCategories();
+  // 商品の付け替えがあった場合はクラウドにも反映
+  if(orig && orig!==newName && isCloudReady()){
+    state.items.filter(it=>it.category===newName).forEach(it=>cloudUpsertItem(it).catch(console.error));
+  }
+  toast('カテゴリを保存しました');
+}
+// カテゴリの並び替え（上下）
+function moveCategoryOrder(name, dir){
+  const cats = state.categories;
+  if(!Array.isArray(cats)) return;
+  const idx = cats.findIndex(c=>c.name===name);
+  const swap = idx + dir;
+  if(idx<0 || swap<0 || swap>=cats.length) return;
+  [cats[idx], cats[swap]] = [cats[swap], cats[idx]];
+  saveState();
+  renderCategorySettings();
+  rerenderAllViews();
+  cloudSaveCategories();
+  feedbackOk();
+}
+// カテゴリ削除（所属商品は「その他」に移動）
+function deleteCategory(name){
+  const cats = state.categories;
+  if(!Array.isArray(cats) || cats.length<=1){ alert('カテゴリは最低1つ必要です。'); return; }
+  const cnt = buildUnifiedItems(state.items).filter(it=>(it.category||'その他').trim()===name).length;
+  const msg = cnt>0
+    ? `「${name}」を削除します。\nこのカテゴリの商品 ${cnt}件 は「その他」に移動します。よろしいですか？`
+    : `「${name}」を削除します。よろしいですか？`;
+  if(!confirm(msg)) return;
+  // 「その他」が無ければ作る
+  let other = cats.find(c=>c.name==='その他');
+  if(!other){ other={name:'その他',bg:'#a855f7',text:'#fff',icon:'🏷️'}; cats.push(other); }
+  // 商品を付け替え
+  const moved = state.items.filter(it=>(it.category||'')===name);
+  moved.forEach(it=>{ it.category='その他'; });
+  // カテゴリ定義から除去
+  state.categories = cats.filter(c=>c.name!==name);
+  saveState();
+  renderCategorySettings();
+  rerenderAllViews();
+  fillCategorySelects();
+  cloudSaveCategories();
+  if(isCloudReady()) moved.forEach(it=>cloudUpsertItem(it).catch(console.error));
+  toast(`「${name}」を削除しました`);
+}
+// 商品モーダルのカテゴリ選択肢を state.categories から埋める
+function fillCategorySelects(){
+  const names = categoryNames();
+  ['itemCategory','newFreezerItemCategory'].forEach(id=>{
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = names.map(n=>`<option>${escapeHtml(n)}</option>`).join('');
+    if(names.includes(cur)) sel.value = cur;
+  });
 }
 
 // ====== 触覚＋音のフィードバック（寒い手・暗い倉庫向け） ======
@@ -1067,6 +1337,20 @@ function isConfirmedToday(item){
 function normalizeState(input){
   const s = input || {};
   s.user = s.user || {name:'松浦',role:'管理者'};
+  // カテゴリ定義（無ければデフォルト）。形が壊れていても安全に復元。
+  if(!Array.isArray(s.categories) || s.categories.length === 0){
+    s.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  } else {
+    s.categories = s.categories
+      .filter(c => c && typeof c.name === 'string' && c.name.trim())
+      .map(c => ({
+        name: String(c.name).trim(),
+        bg:   typeof c.bg   === 'string' ? c.bg   : '#475569',
+        text: typeof c.text === 'string' ? c.text : '#fff',
+        icon: typeof c.icon === 'string' ? c.icon : '📁'
+      }));
+    if(s.categories.length === 0) s.categories = JSON.parse(JSON.stringify(DEFAULT_CATEGORIES));
+  }
   s.items = (s.items || []).map(item => {
     const freezerStock = item.freezerStock
       ? {...item.freezerStock}
@@ -1094,6 +1378,8 @@ function normalizeState(input){
       storeMoved: item.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
       confirmed: confirmedStillValid,
       confirmedAt: confirmedStillValid ? item.confirmedAt : null,
+      // 手動並び順（小さいほど上）。未設定なら null のまま＝自動ソートに従う。
+      sortIndex: (item.sortIndex != null && isFinite(item.sortIndex)) ? Number(item.sortIndex) : null,
       // グループ別在庫上下限（未設定の場合は共通 min/max を引き継ぐ）
       minRoof:   item.minRoof   != null ? Number(item.minRoof)   : Number(item.min   || 0),
       maxRoof:   item.maxRoof   != null ? Number(item.maxRoof)   : Number(item.max   || 0),
@@ -1338,7 +1624,7 @@ function closeModal(id){const el=document.getElementById(id); if(el) el.classLis
 function openCloudModal(){ signInWithGoogle(); }
 function isCloudReady(){ return cloudEnabled && !!window.__fb && !!currentAuthUser; }
 
-function rerenderAllViews(){renderUser();renderKpis();renderDashboardHero();renderDashboard();renderFreezers();renderStoreFreezer();renderAlerts();renderHistory();fillItemSelects()}
+function rerenderAllViews(){renderUser();renderKpis();renderDashboardHero();renderDashboard();renderFreezers();renderStoreFreezer();renderAlerts();renderHistory();fillItemSelects();fillCategorySelects();renderCategorySettings()}
 
 // zaiko-app 風ダッシュボード描画
 // 発注必要 = 屋上グループで min 未満
@@ -1630,22 +1916,51 @@ function renderUnifiedItemList(opts){
     window._pinnedSortOrder[_pinKey] = items.map(i => i.id);
   }
 
-  // カテゴリごとにグルーピング（添付スクショ風の見出しバー＋商品リスト）
+  // 現在の status 順での位置を記録（手動順が無い商品のフォールバック用）
+  const _statusOrderIdx = new Map(items.map((it,i) => [it.id, i]));
+  // カテゴリごとにグルーピング（彩色見出しバー＋商品リスト）
   const byCategory = {};
   for(const it of items){
     const c = (it.category || 'その他').trim() || 'その他';
     (byCategory[c] = byCategory[c] || []).push(it);
   }
-  // 表示順
-  const PREFERRED_ORDER = ['餃子・点心','牛','豚','鶏','肉類','魚類','加工食品','冷凍食材','冷凍惣菜','包材','その他'];
-  const orderedCats = PREFERRED_ORDER
+  // 各カテゴリ内を「手動順(sortIndex)を最優先」で並べる。
+  // sortIndex が無い商品は status 順のフォールバック位置（末尾側）に置く。
+  for(const cat in byCategory){
+    byCategory[cat].sort((a,b) => {
+      const ka = (a.sortIndex!=null) ? a.sortIndex : (1e9 + (_statusOrderIdx.get(a.id)||0));
+      const kb = (b.sortIndex!=null) ? b.sortIndex : (1e9 + (_statusOrderIdx.get(b.id)||0));
+      return ka - kb;
+    });
+  }
+  // カテゴリの表示順 = state.categories の順。未知カテゴリは末尾。
+  const _catOrder = categoryNames();
+  const orderedCats = _catOrder
     .filter(c => byCategory[c])
-    .concat(Object.keys(byCategory).filter(c => !PREFERRED_ORDER.includes(c)));
+    .concat(Object.keys(byCategory).filter(c => !_catOrder.includes(c)));
 
-  const renderItemRow = (item) => {
+  const renderItemRow = (item, _idx, _arr) => {
     const total = groupStock(item, fzSet);
     const status = total===0 ? 'out' : groupStatusOf(item, fzSet);
     const isExpanded = expandedItemIds.has(item.id);
+    // 並び替えモード: シンプルな行＋▲▼ボタン（タップ展開はしない）
+    if(reorderMode){
+      const isFirst = _idx === 0;
+      const isLast  = _idx === (_arr.length - 1);
+      const iconChar2 = (kind==='store') ? '🏪' : '❄️';
+      return `<div class="zc-card reorder-card">
+        <div class="zc-row reorder-row">
+          <div class="zc-icon" aria-hidden="true">${iconChar2}</div>
+          <div class="zc-body">
+            <div class="zc-name">${escapeHtml(item.name)}<span style="font-size:11px;color:#9ca3af;font-weight:600;margin-left:6px">・${escapeHtml(item.category||'')}</span></div>
+          </div>
+          <div class="reorder-btns">
+            <button class="reorder-btn" type="button" ${isFirst?'disabled':''} onclick="event.stopPropagation();moveItemInCategory('${item.id}',-1)" aria-label="上へ">▲</button>
+            <button class="reorder-btn" type="button" ${isLast?'disabled':''} onclick="event.stopPropagation();moveItemInCategory('${item.id}',1)" aria-label="下へ">▼</button>
+          </div>
+        </div>
+      </div>`;
+    }
     const confirmed = isConfirmedToday(item);
     // 場所チップ（在庫がある冷凍庫だけを色付きで表示）
     const chips = fzSet
@@ -1765,7 +2080,17 @@ function renderUnifiedItemList(opts){
     }
   }
 
-  listEl.innerHTML = bannerHtml + rowsHtml + addBtnHtml;
+  // 並び替えモードの案内バナー
+  const reorderBanner = reorderMode
+    ? `<div class="reorder-banner"><span>≡ 並び替えモード：▲▼ で順番を変更できます</span><button class="reorder-done" type="button" onclick="toggleReorderMode()">完了</button></div>`
+    : '';
+  listEl.innerHTML = reorderBanner + bannerHtml + rowsHtml + addBtnHtml;
+
+  // トグルボタンの見た目を反映
+  ['reorderToggleRoof','reorderToggleStore'].forEach(id=>{
+    const btn=document.getElementById(id);
+    if(btn) btn.classList.toggle('active', reorderMode);
+  });
 }
 
 // カテゴリ見出しの「＋」「🕘」ボタンから呼ばれる
@@ -2399,6 +2724,7 @@ async function forcePullFromCloud(){
         maxStore: Number(r.maxStore ?? r.max ?? 0),
         preferredStores: Array.isArray(r.preferredStores) ? r.preferredStores : [],
         usageCount: Number(r.usageCount||0),
+        sortIndex: (r.sortIndex != null && isFinite(r.sortIndex)) ? Number(r.sortIndex) : null,
         freezerStock: r.freezerStock || Object.fromEntries(FREEZERS.map(f=>[f.code,0])),
         visibleInFreezers: r.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
         storeMoved: r.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
@@ -2443,6 +2769,7 @@ function cloudItemRow(item){
     maxStore: Number(item.maxStore ?? item.max ?? 0),
     preferredStores: Array.isArray(item.preferredStores) ? item.preferredStores : [],
     usageCount: Number(item.usageCount||0),
+    sortIndex: (item.sortIndex != null && isFinite(item.sortIndex)) ? Number(item.sortIndex) : null,
     freezerStock: Object.fromEntries(FREEZERS.map(f => [f.code, Number(item.freezerStock?.[f.code]||0)])),
     visibleInFreezers: item.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
     storeMoved: item.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
@@ -2544,9 +2871,24 @@ async function cloudReplaceAllFromLocal(){
 function startFirestoreSync(){
   if(!isCloudReady()) return;
   if(_firestoreUnsub) { try{ _firestoreUnsub(); }catch(e){} _firestoreUnsub = null; }
-  const { db, collection, onSnapshot, query, orderBy, limit } = window.__fb;
+  const { db, collection, onSnapshot, query, orderBy, limit, doc } = window.__fb;
   const itemsCol = collection(db, 'shops', SHOP_ID, 'items');
   const histCol  = collection(db, 'shops', SHOP_ID, 'history');
+  const metaDoc  = doc(db, 'shops', SHOP_ID, 'meta', 'config');
+
+  // カテゴリ定義（設定画面で編集する共有設定）の購読
+  const unsubMeta = onSnapshot(metaDoc, snap => {
+    if(!snap.exists()) return;
+    const data = snap.data();
+    if(Array.isArray(data.categories) && data.categories.length){
+      state.categories = data.categories
+        .filter(c => c && typeof c.name === 'string' && c.name.trim())
+        .map(c => ({ name:String(c.name).trim(), bg:c.bg||'#475569', text:c.text||'#fff', icon:c.icon||'📁' }));
+      saveState();
+      rerenderAllViews();
+      renderCategorySettings();
+    }
+  }, err => console.error('meta onSnapshot error:', err));
 
   // items 購読
   const unsubItems = onSnapshot(itemsCol, snap => {
@@ -2583,6 +2925,7 @@ function startFirestoreSync(){
         maxStore: Number(r.maxStore ?? r.max ?? 0),
         preferredStores: Array.isArray(r.preferredStores) ? r.preferredStores : [],
         usageCount: Number(r.usageCount||0),
+        sortIndex: (r.sortIndex != null && isFinite(r.sortIndex)) ? Number(r.sortIndex) : null,
         freezerStock: r.freezerStock || Object.fromEntries(FREEZERS.map(f=>[f.code,0])),
         visibleInFreezers: r.visibleInFreezers || prev.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
         storeMoved: r.storeMoved || prev.storeMoved || {'神楽坂':0,'男マエ食道':0,'深夜食道':0},
@@ -2624,7 +2967,20 @@ function startFirestoreSync(){
     console.error('history onSnapshot error:', err);
   });
 
-  _firestoreUnsub = () => { try{ unsubItems(); }catch(e){} try{ unsubHist(); }catch(e){} };
+  _firestoreUnsub = () => { try{ unsubItems(); }catch(e){} try{ unsubHist(); }catch(e){} try{ unsubMeta(); }catch(e){} };
+}
+
+// カテゴリ定義をクラウドに保存（オーナー/スタッフ共通設定）
+async function cloudSaveCategories(){
+  if(!isCloudReady()) return;
+  try{
+    const { db, doc, setDoc } = window.__fb;
+    await setDoc(
+      doc(db, 'shops', SHOP_ID, 'meta', 'config'),
+      { categories: state.categories, updatedAt: window.__fb.serverTimestamp() },
+      { merge: true }
+    );
+  }catch(err){ console.error('cloudSaveCategories:', err); }
 }
 
 function stopFirestoreSync(){
@@ -3459,7 +3815,7 @@ function switchView(tabId, keepFilter){
   if(tabId==='freezers') renderFreezers();
   if(tabId==='store-freezers') renderStoreFreezer();
   if(tabId==='history') renderHistory();
-  if(tabId==='settings') updateAuthButtonsUI(); // 設定画面を開くたびにボタンを再評価
+  if(tabId==='settings'){ updateAuthButtonsUI(); renderCategorySettings(); } // 設定画面を開くたびに再評価
   renderDashboardHero(); // active状態を反映
   window.scrollTo({top:0,behavior:'smooth'});
 }

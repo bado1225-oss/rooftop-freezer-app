@@ -53,6 +53,12 @@ service cloud.firestore {
         allow create:         if isStaff();
         allow update, delete: if isOwner();  // 履歴の改ざん/削除はオーナー専用
       }
+
+      // 共有設定（カテゴリ定義など）。スタッフも編集できる。
+      match /meta/{metaId} {
+        allow read:  if canRead();
+        allow write: if isStaff();
+      }
     }
 
     // ====== 旧データ場所（移行用：オーナーが読み取れて、移行後に手動で削除可） ======
