@@ -704,13 +704,25 @@
 
         <div class="item ok" style="margin-top:0">
           <div class="name">クラウド同期（Firebase）</div>
-          <div class="meta">Googleアカウントでログインすると、店舗間でリアルタイムに在庫が同期されます。</div>
+          <div class="meta">ログインすれば<strong>全員の変更が自動で全員に反映</strong>されます。オーナーもスタッフも同じです。ボタン操作は基本いりません。</div>
           <div class="sync-status" id="syncStatus">未ログイン</div>
           <div class="modal-actions">
             <button class="primary" id="googleSignInBtn" onclick="signInWithGoogle()" style="display:none">🟦 Googleでログイン</button>
             <button class="secondary" id="googleSignOutBtn" onclick="signOutFromGoogle()" style="display:none">ログアウト</button>
-            <button class="secondary" id="forcePullBtn" onclick="forcePullFromCloud()" style="display:none">🔄 クラウドから取り直す</button>
-            <button class="secondary" id="forceResyncBtn" onclick="forcePushAllToCloud()" style="display:none">📤 ローカル→クラウドに上書き</button>
+            <button class="secondary" id="forcePullBtn" onclick="forcePullFromCloud()" style="display:none">🔄 今すぐ最新に更新</button>
+          </div>
+        </div>
+
+        <!-- 緊急用（オーナー限定）：クラウドを丸ごと置き換える危険操作。通常は使わない。 -->
+        <div class="item high" id="dangerZoneItem" style="margin-top:12px;display:none">
+          <div class="name" style="color:var(--warn)">⚠️ 緊急用：クラウドをこの端末で丸ごと置き換え</div>
+          <div class="meta" style="margin-top:6px">
+            クラウドの全データを消して、<strong>今この端末の内容だけ</strong>に置き換えます。<br>
+            <strong style="color:#b91c1c">他のスタッフが入力したデータは消えます。</strong>
+            普段は使わないでください（同期は自動です）。クラウドが壊れた等の復旧時のみ。
+          </div>
+          <div class="modal-actions" style="margin-top:10px">
+            <button class="danger" id="forceResyncBtn" onclick="forcePushAllToCloud()">クラウドを上書きする（緊急用）</button>
           </div>
         </div>
 
@@ -2638,14 +2650,15 @@ function updateAuthButtonsUI(){
   const inEl  = document.getElementById('googleSignInBtn');
   const outEl = document.getElementById('googleSignOutBtn');
   const pullEl = document.getElementById('forcePullBtn');
-  const pushEl = document.getElementById('forceResyncBtn');
   const signedIn = !!currentAuthUser;
   if(inEl)  inEl.style.display  = signedIn ? 'none' : 'inline-block';
   if(outEl) outEl.style.display = signedIn ? 'inline-block' : 'none';
-  // 「クラウドから取り直す」はサインイン中なら誰でも使える（自分のローカルを破壊しない安全な操作）
+  // 「今すぐ最新に更新」はサインイン中なら誰でも使える（自分のローカルを破壊しない安全な操作）
   if(pullEl) pullEl.style.display = signedIn ? 'inline-block' : 'none';
-  // 「ローカル→クラウド上書き」はオーナー専用（誤操作で他人の入力を消す危険があるため）
-  if(pushEl) pushEl.style.display = (signedIn && isOwnerUser()) ? 'inline-block' : 'none';
+
+  // 緊急用の「クラウド丸ごと上書き」ゾーンはオーナー限定で表示
+  const dangerZone = document.getElementById('dangerZoneItem');
+  if(dangerZone) dangerZone.style.display = (signedIn && isOwnerUser()) ? '' : 'none';
 
   // 「初期データに戻す」もオーナー専用
   const resetBtn = document.querySelector('button.danger[onclick^="resetAll"]');
@@ -2692,10 +2705,13 @@ async function signOutFromGoogle(){
 async function forcePushAllToCloud(){
   if(!isCloudReady()){ alert('未ログインです。'); return; }
   if(!isOwnerUser()){
-    alert('「ローカル→クラウド上書き」はオーナーのみ実行できます。');
+    alert('この緊急操作はオーナーのみ実行できます。');
     return;
   }
-  if(!confirm('現在の端末の在庫データでクラウドを上書きします。\n他のスタッフの直近入力が消える可能性があります。よろしいですか？')) return;
+  // 二重確認：スタッフのデータを消しうる危険操作なので、誤操作を確実に防ぐ
+  if(!confirm('【緊急用】クラウドの全データを消して、今この端末の内容だけに置き換えます。\n\n他のスタッフが入力したデータは消えます。\n\n普段は自動で同期されるので、この操作は不要です。本当に実行しますか？')) return;
+  const typed = prompt('本当に実行する場合は「上書き」と入力してください（キャンセルで中止）。');
+  if(typed !== '上書き'){ toast('中止しました'); return; }
   try{
     updateSyncStatus('アップロード中...');
     await cloudReplaceAllFromLocal();
