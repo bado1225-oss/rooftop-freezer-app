@@ -638,12 +638,13 @@
         <button class="reorder-toggle" id="reorderToggleRoof" type="button" onclick="toggleReorderMode()">≡ 並び替え</button>
       </div>
       <div class="fz-filter-row" id="fzSubFilter">
+        <!-- 呼び名変更(2026-06): F5=No.2, F2=No.3, F3=No.4, F4=No.5。data-filter(コード)は不変 -->
         <button class="fz-filter-btn fz-all active" data-filter="all">すべて</button>
         <button class="fz-filter-btn fz-f1" data-filter="F1">No.1</button>
-        <button class="fz-filter-btn fz-f2" data-filter="F2">No.2</button>
-        <button class="fz-filter-btn fz-f3" data-filter="F3">No.3</button>
-        <button class="fz-filter-btn fz-f4" data-filter="F4">No.4</button>
-        <button class="fz-filter-btn fz-f5" data-filter="F5">アパート</button>
+        <button class="fz-filter-btn fz-f5" data-filter="F5">No.2</button>
+        <button class="fz-filter-btn fz-f2" data-filter="F2">No.3</button>
+        <button class="fz-filter-btn fz-f3" data-filter="F3">No.4</button>
+        <button class="fz-filter-btn fz-f4" data-filter="F4">No.5</button>
       </div>
       <div class="list" id="freezerList"></div>
     </div>
@@ -769,7 +770,7 @@
 
   <!-- 屋上冷凍庫セクション（屋上コンテキスト or 全体表示時） -->
   <div id="itemSectionRoof">
-    <div class="modal-section-head roof" style="margin:12px 0 8px">🏠 屋上冷凍庫（No.1〜No.4）</div>
+    <div class="modal-section-head roof" style="margin:12px 0 8px">🏠 屋上冷凍庫（No.1〜No.5）</div>
     <div class="form-grid">
       <div class="field"><label>最低在庫数</label><input id="itemMin" type="number" min="0" max="9999"></div>
       <div class="field"><label>最大在庫数</label><input id="itemMax" type="number" min="0" max="9999"></div>
@@ -913,7 +914,11 @@ const SHOP_ID = 'main';                                // 将来、店舗別に�
 const OWNER_EMAIL = 'bado1225@gmail.com';              // オーナー（全権）
 const STAFF_EMAILS = ['vc30mavs@gmail.com'];           // 編集できるスタッフのGoogleメール
 const READONLY_EMAILS = [];                            // 閲覧だけのGoogleメール（将来用）
-const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F2',name:'冷凍庫No.2',cls:'b2'},{code:'F3',name:'冷凍庫No.3',cls:'b3'},{code:'F4',name:'冷凍庫No.4',cls:'b4'},{code:'F5',name:'アパート冷凍庫',cls:'b5'}];
+// 屋上冷凍庫の呼び名変更（2026-06）: 旧アパート(F5)→No.2、旧No.2(F2)→No.3、
+// 旧No.3(F3)→No.4、旧No.4(F4)→No.5。code は在庫データの入れ物なので変えない
+// （変えなければ在庫・履歴はそのまま新しい呼び名に付いてくる）。
+// 配列の順序 = 画面の表示順（No.1→No.5）。
+const ROOF_FREEZERS=[{code:'F1',name:'冷凍庫No.1',cls:'b1'},{code:'F5',name:'冷凍庫No.2',cls:'b5'},{code:'F2',name:'冷凍庫No.3',cls:'b2'},{code:'F3',name:'冷凍庫No.4',cls:'b3'},{code:'F4',name:'冷凍庫No.5',cls:'b4'}];
 const STORE_FREEZERS=[{code:'S1',name:'冷凍庫A',cls:'b1'},{code:'S2',name:'冷凍庫B',cls:'b2'},{code:'S3',name:'冷凍庫C',cls:'b3'},{code:'S4',name:'冷凍庫D',cls:'b4'},{code:'S5',name:'-60度冷凍庫',cls:'b5'}];
 const FREEZERS=[...ROOF_FREEZERS,...STORE_FREEZERS];
 const STORES=['神楽坂','男マエ食道','深夜食道'];
@@ -2205,7 +2210,7 @@ function makeStoreChecks(selected=[]){
 }
 
 function makeFreezerChecks(selected=[]){
-  // 屋上冷凍庫ボタン（No.1〜No.4）
+  // 屋上冷凍庫ボタン（No.1〜No.5）
   const roofInner=document.getElementById('freezerChecksRoofInner');
   if(roofInner){
     roofInner.innerHTML=ROOF_FREEZERS.map(f=>`<button type="button" class="check ${selected.includes(f.code)?'active':''}" data-freezer="${f.code}">${f.name}</button>`).join('');
@@ -2255,7 +2260,7 @@ function switchItemModalTab(tab){applyItemModalMode(tab);}
 function renderInitialStockGrid(values={}){
   const selected=[...document.querySelectorAll('#freezerChecks .check.active')].map(el=>el.dataset.freezer);
 
-  // 屋上グリッド（No.1〜No.4）
+  // 屋上グリッド（No.1〜No.5）
   const roofWrap=document.getElementById('initialStockGridRoof');
   if(roofWrap){
     roofWrap.innerHTML=ROOF_FREEZERS.map(f=>{
@@ -3413,8 +3418,10 @@ function removeItemFromFreezer(itemId, freezerCode){
 function fzIdx(code){const m=String(code).match(/[A-Z](\d+)/);return m?parseInt(m[1])-1:-1;}
 function fzNum(code){
   if(String(code).startsWith('S')){return(['A','B','C','D','-60度'][fzIdx(code)])||code;}
-  if(code==='F5') return 'アパート';
-  const n=fzIdx(code)+1;return n>0?'No.'+n:code;
+  // 屋上: 2026-06の呼び名変更に対応（F5=No.2, F2=No.3, F3=No.4, F4=No.5）。
+  // コードの数字から機械的に作らず、対応表で引く。
+  const ROOF_NUM = {F1:'No.1', F5:'No.2', F2:'No.3', F3:'No.4', F4:'No.5'};
+  return ROOF_NUM[code] || code;
 }
 // CSSクラス（S1→f1 として屋上と同じカラーを再利用）
 function fzCls(code){const n=fzIdx(code)+1;return n>0?'f'+n:String(code).toLowerCase();}
@@ -3909,7 +3916,7 @@ document.getElementById('searchDashboard').addEventListener('change',renderDashb
 
 document.getElementById('searchFreezer').addEventListener('change',renderFreezers);
 document.getElementById('searchStoreFreezer').addEventListener('change',renderStoreFreezer);
-// 屋上冷凍庫サブフィルター（すべて / No.1〜No.4 / アパート）
+// 屋上冷凍庫サブフィルター（すべて / No.1〜No.5）
 document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{
     document.querySelectorAll('#fzSubFilter .fz-filter-btn').forEach(b=>b.classList.remove('active'));
