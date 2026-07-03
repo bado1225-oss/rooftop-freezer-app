@@ -298,6 +298,7 @@
     .zc-qty-num.is-warn{color:#d97706}
     .zc-qty-num.is-high{color:#ea580c}
     .zc-qty-num.is-out{color:#6b7280}
+    .zc-qty-total{font-size:10px;color:#9ca3af;font-weight:700;white-space:nowrap}
     .zc-qty-unit{font-size:11px;color:var(--zc-muted);font-weight:600}
     .zc-status-dot{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:999px;font-size:10px;font-weight:700;margin-top:2px}
     .zc-status-dot.low{background:#fee2e2;color:#b91c1c}
@@ -1919,11 +1920,12 @@ function renderUnifiedItemList(opts){
     const sb = groupStock(b, fzSet)===0 ? 'out' : groupStatusOf(b, fzSet);
     return (rank[sa]??9) - (rank[sb]??9) || a.name.localeCompare(b.name,'ja');
   });
-  // ピン留め: 「いずれかのカードが展開中」なら前回の順をそのまま使う。
-  // 展開を全部閉じた次のrenderで、はじめて最新順を覚え直す。
+  // ピン留め: 「カード展開中」または「クイック±1パネルを開いている」間は
+  // 前回の順をそのまま使う（入力途中に在庫→ステータスが変わってカードが
+  // 飛び跳ねる誤操作を防ぐ）。全部閉じた次のrenderで最新順を覚え直す。
   window._pinnedSortOrder = window._pinnedSortOrder || {};
   const _pinKey = kind; // 'roof' or 'store' — 屋上/店舗で独立管理
-  const _hasExpanded = items.some(i => expandedItemIds.has(i.id));
+  const _hasExpanded = items.some(i => expandedItemIds.has(i.id) || quickStepItemIds.has(i.id));
   if(_hasExpanded && Array.isArray(window._pinnedSortOrder[_pinKey])){
     const _order = window._pinnedSortOrder[_pinKey];
     const _orderIdx = new Map(_order.map((id,i) => [id, i]));
@@ -2034,8 +2036,17 @@ function renderUnifiedItemList(opts){
     }
 
     // 在庫切れ・不足・注意 で数字色を変える
-    const qtyClass = status==='out'?'is-out':status==='low'?'is-low':status==='warn'?'is-warn':status==='high'?'is-high':'';
     const iconChar = (kind==='store') ? '🏪' : '❄️';
+    // 表示する数字: サブフィルターで特定の冷凍庫を選んでいる時は「その冷凍庫の数」を
+    // 大きく出し、下に小さく全体合計を添える（合計だけだと庫内の数が分からないため）
+    const isFiltered = freezer !== 'all';
+    const shownQty = isFiltered ? Number(item.freezerStock?.[freezer]||0) : total;
+    const qtyClass = isFiltered
+      ? (shownQty===0 ? 'is-out' : '')
+      : (status==='out'?'is-out':status==='low'?'is-low':status==='warn'?'is-warn':status==='high'?'is-high':'');
+    const subTotalHtml = isFiltered
+      ? `<div class="zc-qty-total">全体 ${total}${item.unit}</div>`
+      : '';
 
     return `<div class="zc-card ${confirmed?'is-confirmed':''} ${isExpanded?'is-expanded':''}">
       <div class="zc-row" onclick="toggleItemExpand('${item.id}')">
@@ -2049,8 +2060,9 @@ function renderUnifiedItemList(opts){
           <div class="zc-tags">${chips || '<span style="font-size:11px;color:#9ca3af">登録のみ・在庫なし</span>'}</div>
         </div>
         <div class="zc-qty-block" onclick="event.stopPropagation();toggleQuickStep('${item.id}')" title="タップで±1">
-          <div class="zc-qty-num ${qtyClass}">${total}</div>
+          <div class="zc-qty-num ${qtyClass}">${shownQty}</div>
           <div class="zc-qty-unit">${item.unit}</div>
+          ${subTotalHtml}
           <span class="zc-status-dot ${status}">${statusLabel}</span>
         </div>
         <div class="zc-caret">▼</div>
