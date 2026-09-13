@@ -187,11 +187,48 @@
     .field input,.field select,.field textarea{border:1px solid var(--line);border-radius:12px;padding:12px 13px;min-height:44px;background:#fff}
     .checks{display:flex;gap:8px;flex-wrap:wrap}.check{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#fff;cursor:pointer;font-weight:700}
     .check.active{background:#dbeafe;border-color:#93c5fd;color:#1d4ed8}
-.initial-stock-box{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fff}
-    .initial-stock-box.off{opacity:.55;background:#f8fafc}
-    .initial-stock-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
-    .initial-stock-label{font-size:13px;font-weight:800}
-    .initial-stock-input{width:100%}
+/* ===== 商品編集モーダル（整理版） ===== */
+    .item-modal h3{margin-bottom:8px}
+    .im-section{margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+    .im-section-title{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:900;color:var(--text);margin-bottom:10px;flex-wrap:wrap}
+    .im-step{width:24px;height:24px;border-radius:50%;background:#111827;color:#fff;font-size:12px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+    .im-section-title.roof .im-step{background:var(--primary)}
+    .im-section-title.store .im-step{background:var(--warn)}
+    .im-hint{flex-basis:100%;font-size:11px;font-weight:700;color:var(--muted);line-height:1.5}
+    /* 冷凍庫ごとの1行：[選択トグル][在庫数] */
+    .fz-rows{display:flex;flex-direction:column;gap:8px}
+    .fz-row{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;transition:background .12s,border-color .12s}
+    .fz-row.on{background:#fff;border-color:#cbd5e1}
+    .fz-row-toggle{flex:0 0 auto;min-width:112px;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:2px solid var(--line);background:#fff;font-weight:900;font-size:15px;cursor:pointer;color:#94a3b8;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:background .12s,color .12s,border-color .12s}
+    .fz-row-toggle:active{transform:scale(.97)}
+    .fz-row-check{width:20px;height:20px;border-radius:6px;border:2px solid #cbd5e1;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;background:#fff;flex-shrink:0;color:#fff}
+    .fz-row.on .fz-row-check{background:#111827;border-color:#111827}
+    .fz-row.on .fz-row-toggle.f1{background:var(--fz1-bg);color:var(--fz1-text);border-color:#bfdbfe}
+    .fz-row.on .fz-row-toggle.f2{background:var(--fz2-bg);color:var(--fz2-text);border-color:#a7f3d0}
+    .fz-row.on .fz-row-toggle.f3{background:var(--fz3-bg);color:var(--fz3-text);border-color:#fdba74}
+    .fz-row.on .fz-row-toggle.f4{background:var(--fz4-bg);color:var(--fz4-text);border-color:#ddd6fe}
+    .fz-row.on .fz-row-toggle.f5{background:var(--fz5-bg);color:var(--fz5-text);border-color:#fbcfe8}
+    .fz-row-qty{flex:1;display:flex;align-items:center;gap:8px;min-width:0}
+    .fz-row-qty input{flex:1;min-width:0;width:100%;font-size:20px;font-weight:800;text-align:right;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-variant-numeric:tabular-nums}
+    .fz-row-qty input:disabled{background:#f1f5f9;color:#cbd5e1;border-color:#e5e7eb}
+    .fz-row-qty input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.15)}
+    .fz-row-unit{font-size:12px;font-weight:800;color:var(--muted);min-width:2.6em;flex-shrink:0}
+    /* 不足/過剰の目安 */
+    .im-threshold{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+    .im-threshold-label{font-size:12px;font-weight:800;color:#4b5563;margin-bottom:8px}
+    .im-threshold-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .im-threshold-grid input{font-size:16px;font-weight:700;text-align:right}
+    /* 折りたたみ（詳しい設定） */
+    .im-details{margin-top:12px}
+    .im-details summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--primary);padding:8px 4px;list-style:none;-webkit-tap-highlight-color:transparent}
+    .im-details summary::-webkit-details-marker{display:none}
+    .im-details[open] summary{margin-bottom:8px}
+    .im-details summary::before{content:'▸ '}
+    .im-details[open] summary::before{content:'▾ '}
+    @media (max-width:480px){
+      .fz-row-toggle{min-width:96px;padding:10px;font-size:14px}
+      .fz-row-qty input{font-size:18px;padding:9px 10px}
+    }
     .modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
     .small{font-size:12px;color:var(--muted);line-height:1.7}.history-filter{padding:0 14px 14px}
     .history-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;margin-top:12px}
@@ -758,55 +795,63 @@
 <!-- 右下フローティング「新規追加」ボタン -->
 <button class="fab-add" onclick="openItemModal()" aria-label="新規追加" title="新規品目を追加">＋</button>
 
-<div class="modal-wrap" id="itemModalWrap"><div class="modal">
+<div class="modal-wrap" id="itemModalWrap"><div class="modal item-modal">
   <h3 id="itemModalTitle">商品を編集</h3>
-  <!-- 開いたコンテキストをバッジで表示 -->
-  <div id="itemModalContextBadge" style="margin-bottom:12px"></div>
-  <div class="form-grid">
-    <div class="field full"><label>商品名</label><input id="itemName"></div>
-    <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>餃子・点心</option><option>牛</option><option>豚</option><option>鶏</option><option>肉類</option><option>魚類</option><option>加工食品</option><option>冷凍食材</option><option>冷凍惣菜</option><option>包材</option><option>その他</option></select></div>
-    <div class="field"><label>単位</label><select id="itemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
+  <!-- 開いたコンテキスト（屋上/店舗どちらから開いたか）をバッジで表示 -->
+  <div id="itemModalContextBadge"></div>
+
+  <!-- ① 基本情報 -->
+  <div class="im-section">
+    <div class="im-section-title"><span class="im-step">1</span>基本情報</div>
+    <div class="form-grid">
+      <div class="field full"><label>商品名</label><input id="itemName" placeholder="例: 牛タン"></div>
+      <div class="field"><label>カテゴリ</label><select id="itemCategory"><option>餃子・点心</option><option>牛</option><option>豚</option><option>鶏</option><option>その他の肉</option><option>魚介</option><option>惣菜・加工</option><option>その他</option></select></div>
+      <div class="field"><label>単位</label><select id="itemUnit"><option>個</option><option>袋</option><option>パック</option><option>ケース</option><option>kg</option></select></div>
+    </div>
   </div>
 
-  <!-- 屋上冷凍庫セクション（屋上コンテキスト or 全体表示時） -->
-  <div id="itemSectionRoof">
-    <div class="modal-section-head roof" style="margin:12px 0 8px">🏠 屋上冷凍庫（No.1〜No.5）</div>
-    <div class="form-grid">
-      <div class="field"><label>最低在庫数</label><input id="itemMin" type="number" min="0" max="9999"></div>
-      <div class="field"><label>最大在庫数</label><input id="itemMax" type="number" min="0" max="9999"></div>
-      <div class="field full">
-        <label>登録する冷凍庫</label>
-        <div class="checks" id="freezerChecksRoofInner"></div>
-      </div>
-      <div class="field full">
-        <label>初期在庫設定</label>
-        <div class="form-grid" id="initialStockGridRoof"></div>
+  <!-- ② 屋上冷凍庫：冷凍庫ごとに「タップで選択＋在庫数入力」を1行にまとめる -->
+  <div class="im-section" id="itemSectionRoof">
+    <div class="im-section-title roof"><span class="im-step">2</span>🏠 屋上冷凍庫
+      <span class="im-hint">置く冷凍庫をタップして選び、その右に在庫数を入れてください</span>
+    </div>
+    <div class="fz-rows" id="freezerRowsRoof"></div>
+    <div class="im-threshold">
+      <div class="im-threshold-label">屋上全体の目安（合計で判定）</div>
+      <div class="im-threshold-grid">
+        <div class="field"><label>🔴 これ未満で「不足」</label><input id="itemMin" type="number" min="0" max="9999" inputmode="numeric" placeholder="例: 5"></div>
+        <div class="field"><label>🟠 これを超えると「過剰」</label><input id="itemMax" type="number" min="0" max="9999" inputmode="numeric" placeholder="空欄=上限なし"></div>
       </div>
     </div>
   </div>
 
-  <!-- 店舗冷凍庫セクション（店舗コンテキスト or 全体表示時） -->
-  <div id="itemSectionStore">
-    <div class="modal-section-head store" style="margin:12px 0 8px">🏪 店舗冷凍庫（A〜D）</div>
-    <div class="form-grid">
-      <div class="field"><label>最低在庫数</label><input id="itemMinStore" type="number" min="0" max="9999"></div>
-      <div class="field"><label>最大在庫数</label><input id="itemMaxStore" type="number" min="0" max="9999"></div>
-      <div class="field full"><label>よく補充する店舗</label><div class="checks" id="storeChecks"></div></div>
-      <div class="field full">
-        <label>登録する冷凍庫</label>
-        <div class="checks" id="freezerChecksStoreInner"></div>
-      </div>
-      <div class="field full">
-        <label>初期在庫設定</label>
-        <div class="form-grid" id="initialStockGridStore"></div>
+  <!-- ③ 店舗冷凍庫 -->
+  <div class="im-section" id="itemSectionStore">
+    <div class="im-section-title store"><span class="im-step">3</span>🏪 店舗冷凍庫
+      <span class="im-hint">置く冷凍庫をタップして選び、その右に在庫数を入れてください</span>
+    </div>
+    <div class="fz-rows" id="freezerRowsStore"></div>
+    <div class="im-threshold">
+      <div class="im-threshold-label">店舗全体の目安（合計で判定）</div>
+      <div class="im-threshold-grid">
+        <div class="field"><label>🔴 これ未満で「不足」</label><input id="itemMinStore" type="number" min="0" max="9999" inputmode="numeric" placeholder="例: 3"></div>
+        <div class="field"><label>🟠 これを超えると「過剰」</label><input id="itemMaxStore" type="number" min="0" max="9999" inputmode="numeric" placeholder="空欄=上限なし"></div>
       </div>
     </div>
   </div>
 
-  <div class="field full small" style="padding:4px 0 8px">選択した冷凍庫へ初期在庫を設定できます。0の場合でも表示対象として登録されます。</div>
-  <!-- JS読み取り互換用（非表示） -->
+  <!-- 詳しい設定（普段は使わないので折りたたみ） -->
+  <details class="im-details" id="itemDetailsMore">
+    <summary>詳しい設定（よく補充する店舗）</summary>
+    <div class="field full">
+      <label>よく補充する店舗</label>
+      <div class="checks" id="storeChecks"></div>
+      <div class="mini-note" style="margin-top:6px">「店舗へ補充」画面で店舗を選ぶとき、ここで選んだ店が先頭に出ます。</div>
+    </div>
+  </details>
+
+  <!-- JS読み取り互換用（非表示）：saveItem が選択中の冷凍庫を読む -->
   <div id="freezerChecks" style="display:none"></div>
-  <div id="initialStockGrid" style="display:none"></div>
 
   <div class="modal-actions"><button class="secondary" onclick="closeModal('itemModalWrap')">閉じる</button><button class="primary" onclick="saveItem()">保存する</button></div>
 </div></div>
@@ -2209,32 +2254,91 @@ function makeStoreChecks(selected=[]){
   wrap.querySelectorAll('.check').forEach(btn=>btn.onclick=()=>btn.classList.toggle('active'));
 }
 
-function makeFreezerChecks(selected=[]){
-  // 屋上冷凍庫ボタン（No.1〜No.5）
-  const roofInner=document.getElementById('freezerChecksRoofInner');
-  if(roofInner){
-    roofInner.innerHTML=ROOF_FREEZERS.map(f=>`<button type="button" class="check ${selected.includes(f.code)?'active':''}" data-freezer="${f.code}">${f.name}</button>`).join('');
-    roofInner.querySelectorAll('.check').forEach(btn=>{
-      btn.onclick=()=>{btn.classList.toggle('active');syncHiddenFreezerChecks();renderInitialStockGrid();};
-    });
-  }
-  // 店舗冷凍庫ボタン（A〜D）
-  const storeInner=document.getElementById('freezerChecksStoreInner');
-  if(storeInner){
-    storeInner.innerHTML=STORE_FREEZERS.map(f=>`<button type="button" class="check ${selected.includes(f.code)?'active':''}" data-freezer="${f.code}">${f.name}</button>`).join('');
-    storeInner.querySelectorAll('.check').forEach(btn=>{
-      btn.onclick=()=>{btn.classList.toggle('active');syncHiddenFreezerChecks();renderInitialStockGrid();};
-    });
-  }
+// ===== 商品モーダルの冷凍庫行（選択＋在庫数を1行に統合） =====
+// 旧UIは「登録する冷凍庫」のボタン群と「初期在庫設定」の数字欄が別々で、
+// 2段階操作になり分かりにくかった。ここでは冷凍庫ごとに
+// [タップで選択] [在庫数 入力] の1行にまとめる。
+// saveItem は従来どおり #freezerChecks(非表示) と [data-stock-freezer] を読むので
+// そちらは互換のため維持する。
+let _fzRowSelected = new Set();   // 選択中の冷凍庫コード
+let _fzRowValues   = {};          // 冷凍庫コード → 在庫数
+
+function _readFreezerRowInputs(){
+  // 再描画の前に、ユーザーが打ち込んだ数値を拾っておく（消さないため）
+  document.querySelectorAll('.fz-row input[data-stock-freezer]').forEach(inp=>{
+    const v=Number(inp.value);
+    _fzRowValues[inp.dataset.stockFreezer]=Number.isFinite(v)&&v>=0?v:0;
+  });
+}
+
+function renderFreezerRows(){
+  const unit = document.getElementById('itemUnit')?.value || '';
+  const build = (fzSet) => fzSet.map(f=>{
+    const on  = _fzRowSelected.has(f.code);
+    const val = _fzRowValues[f.code]!=null ? _fzRowValues[f.code] : 0;
+    return `<div class="fz-row ${on?'on':''}" data-code="${f.code}">
+      <button type="button" class="fz-row-toggle ${fzCls(f.code)}" data-freezer="${f.code}" aria-pressed="${on}">
+        <span class="fz-row-check">${on?'✓':''}</span>
+        <span class="fz-row-name">${escapeHtml(fzNum(f.code))}</span>
+      </button>
+      <div class="fz-row-qty">
+        <input type="number" min="0" max="9999" inputmode="numeric" value="${val}" data-stock-freezer="${f.code}" ${on?'':'disabled'} aria-label="${escapeHtml(f.name)}の在庫数">
+        <span class="fz-row-unit">${escapeHtml(unit)}</span>
+      </div>
+    </div>`;
+  }).join('');
+
+  const roofWrap  = document.getElementById('freezerRowsRoof');
+  const storeWrap = document.getElementById('freezerRowsStore');
+  if(roofWrap)  roofWrap.innerHTML  = build(ROOF_FREEZERS);
+  if(storeWrap) storeWrap.innerHTML = build(STORE_FREEZERS);
+
+  // タップで選択ON/OFF（打ち込み中の数値は保持）
+  document.querySelectorAll('.fz-row-toggle').forEach(btn=>{
+    btn.onclick=()=>{
+      _readFreezerRowInputs();
+      const code=btn.dataset.freezer;
+      if(_fzRowSelected.has(code)) _fzRowSelected.delete(code); else _fzRowSelected.add(code);
+      renderFreezerRows();
+      // 選択した直後は数字欄にフォーカスして、そのまま入力できるようにする
+      if(_fzRowSelected.has(code)){
+        const inp=document.querySelector(`.fz-row input[data-stock-freezer="${code}"]`);
+        if(inp){ inp.focus(); inp.select(); }
+      }
+    };
+  });
+  document.querySelectorAll('.fz-row input[data-stock-freezer]').forEach(inp=>{
+    inp.oninput=()=>{ const v=Number(inp.value); _fzRowValues[inp.dataset.stockFreezer]=Number.isFinite(v)&&v>=0?v:0; };
+  });
   syncHiddenFreezerChecks();
 }
 
-// 非表示の freezerChecks をJS読み取り用に同期
+// 旧名互換：選択状態をセットして描画
+function makeFreezerChecks(selected=[]){
+  _fzRowSelected = new Set(selected);
+  renderFreezerRows();
+}
+
+// 非表示の #freezerChecks を saveItem 読み取り用に同期
 function syncHiddenFreezerChecks(){
-  const all=[...document.querySelectorAll('#freezerChecksRoofInner .check.active, #freezerChecksStoreInner .check.active')];
   const hidden=document.getElementById('freezerChecks');
   if(!hidden) return;
-  hidden.innerHTML=all.map(b=>`<button class="check active" data-freezer="${b.dataset.freezer}"></button>`).join('');
+  hidden.innerHTML=[..._fzRowSelected].map(code=>`<button class="check active" data-freezer="${code}"></button>`).join('');
+}
+
+// 単位を変えたら各行の単位表示も追従させる（スクリプトは body 末尾なので要素は既に存在）
+{
+  const unitSel=document.getElementById('itemUnit');
+  if(unitSel) unitSel.addEventListener('change', ()=>{
+    document.querySelectorAll('.fz-row-unit').forEach(el=>el.textContent=unitSel.value);
+  });
+  // PC: 数字欄にフォーカスしたままホイールでスクロールすると値が勝手に増減する
+  // ブラウザ標準動作を無効化（誤入力防止）。フォーカスを外してスクロールに回す。
+  const modal=document.getElementById('itemModalWrap');
+  if(modal) modal.addEventListener('wheel', e=>{
+    const t=e.target;
+    if(t && t.tagName==='INPUT' && t.type==='number' && document.activeElement===t) t.blur();
+  }, {passive:true});
 }
 // モーダル表示モード適用
 // mode: 'roof'=屋上のみ / 'store'=店舗のみ / 'all'=両方
@@ -2257,40 +2361,10 @@ function applyItemModalMode(mode){
 // 旧タブ切り替え互換（呼び出し元が残っている場合のフォールバック）
 function switchItemModalTab(tab){applyItemModalMode(tab);}
 
+// 旧名互換：在庫数の初期値をセットして描画（選択状態は makeFreezerChecks で設定済み）
 function renderInitialStockGrid(values={}){
-  const selected=[...document.querySelectorAll('#freezerChecks .check.active')].map(el=>el.dataset.freezer);
-
-  // 屋上グリッド（No.1〜No.5）
-  const roofWrap=document.getElementById('initialStockGridRoof');
-  if(roofWrap){
-    roofWrap.innerHTML=ROOF_FREEZERS.map(f=>{
-      const enabled=selected.includes(f.code);
-      const value=values[f.code]!=null?values[f.code]:0;
-      return `<div class="initial-stock-box ${enabled?'':'off'}">
-        <div class="initial-stock-head">
-          <div class="initial-stock-label">${f.name}</div>
-          <div class="mini-note">${enabled?'設定対象':'未選択'}</div>
-        </div>
-        <input class="form-input initial-stock-input" type="number" min="0" max="9999" value="${value}" data-stock-freezer="${f.code}" ${enabled?'':'disabled'}>
-      </div>`;
-    }).join('');
-  }
-
-  // 店舗グリッド（A〜D）
-  const storeWrap=document.getElementById('initialStockGridStore');
-  if(storeWrap){
-    storeWrap.innerHTML=STORE_FREEZERS.map(f=>{
-      const enabled=selected.includes(f.code);
-      const value=values[f.code]!=null?values[f.code]:0;
-      return `<div class="initial-stock-box ${enabled?'':'off'}">
-        <div class="initial-stock-head">
-          <div class="initial-stock-label">${f.name}</div>
-          <div class="mini-note">${enabled?'設定対象':'未選択'}</div>
-        </div>
-        <input class="form-input initial-stock-input" type="number" min="0" max="9999" value="${value}" data-stock-freezer="${f.code}" ${enabled?'':'disabled'}>
-      </div>`;
-    }).join('');
-  }
+  _fzRowValues = Object.assign({}, _fzRowValues, values);
+  renderFreezerRows();
 }
 // mode: 'roof'=屋上のみ, 'store'=店舗のみ, 'all'=両方（デフォルト）
 function openItemModal(mode='all'){
@@ -2302,6 +2376,7 @@ function openItemModal(mode='all'){
   makeFreezerChecks([]);
   const allZero=Object.fromEntries(FREEZERS.map(f=>[f.code,0]));
   renderInitialStockGrid(allZero);
+  const det=document.getElementById('itemDetailsMore'); if(det) det.open=false;
   applyItemModalMode(mode);
   openModal('itemModalWrap');
 }
@@ -2322,6 +2397,8 @@ function editItem(id, freezerCode=null, mode='all'){
   makeFreezerChecks(selectedFreezers);
   const stockValues=Object.fromEntries(FREEZERS.map(f=>[f.code,Number(item.freezerStock?.[f.code]||0)]));
   renderInitialStockGrid(stockValues);
+  // 「よく補充する店舗」が設定済みなら折りたたみを開いて見せる（未設定なら閉じておく）
+  const det=document.getElementById('itemDetailsMore'); if(det) det.open=(item.preferredStores||[]).length>0;
   switchItemModalTab('roof');
 
   let removeBtn = document.getElementById('removeFromFreezerInEditBtn');
