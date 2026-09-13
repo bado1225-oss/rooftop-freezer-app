@@ -25,7 +25,7 @@
       --shadow:0 10px 30px rgba(0,0,0,.08); --radius:18px;
     }
     *{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic UI",sans-serif;background:var(--bg);color:var(--text)}
-    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px calc(96px + env(safe-area-inset-bottom))}
+    button,input,select,textarea{font:inherit} .app{max-width:980px;margin:0 auto;padding:16px 16px calc(88px + env(safe-area-inset-bottom))}
     .header{position:sticky;top:0;z-index:50;background:rgba(246,247,251,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin:0 -16px 12px;padding:14px 16px}
     .header-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
     /* zaiko-app 互換のヘッダー */
@@ -33,9 +33,6 @@
     .header-title-wrap{flex:1;min-width:0}
     .header-sub{font-size:12px;color:var(--muted);margin-top:4px}
     .header-actions{display:flex;gap:8px;flex-shrink:0}
-    .header-icon-btn{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-    .header-icon-btn:hover,.header-icon-btn:active{background:var(--bg);border-color:var(--primary)}
-    .header-icon-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
     /* メインのセグメントタブ（屋上／店舗）— スクロール時に上部固定 */
     .main-segment-tabs{display:flex;gap:8px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:6px;margin:0 0 12px;box-shadow:var(--shadow);position:sticky;top:0;z-index:30}
     .main-segment-btn{flex:1;border:none;background:transparent;border-radius:10px;padding:12px 8px;font-size:15px;font-weight:800;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s,color .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
@@ -121,8 +118,6 @@
       .cat-icon{font-size:18px}
     }
     /* 右下の新規追加 FAB */
-    .fab-add{position:fixed;right:20px;bottom:calc(72px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:none;background:var(--primary);color:#fff;font-size:28px;font-weight:900;box-shadow:0 8px 24px rgba(29,78,216,.4);cursor:pointer;z-index:40;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background .15s}
-    .fab-add:hover,.fab-add:active{background:var(--primary2);transform:scale(1.05)}
     .title{font-size:24px;font-weight:800;margin:0} .sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6}
     .role-chip{padding:10px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);font-size:12px;font-weight:700}
     .grid{display:grid;gap:14px} .grid.kpis{grid-template-columns:repeat(4,1fr)}
@@ -383,6 +378,10 @@
     .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:flex;background:#fff;border-top:1px solid var(--line);box-shadow:0 -4px 16px rgba(15,23,42,.08);padding-bottom:env(safe-area-inset-bottom)}
     .bottom-nav-btn{flex:1;border:none;background:transparent;padding:8px 4px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;font-weight:800;color:var(--muted);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
     .bottom-nav-btn .bn-icon{font-size:21px;line-height:1.2}
+    /* 中央の「追加」：少し持ち上げた丸ボタン。浮きFABと違い中身に被らない */
+    .bottom-nav-btn.bn-add{color:var(--primary)}
+    .bn-add-circle{width:46px;height:46px;margin-top:-18px;border-radius:50%;background:var(--primary);color:#fff;font-size:26px;font-weight:900;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(29,78,216,.35);border:3px solid #fff}
+    .bottom-nav-btn.bn-add:active .bn-add-circle{transform:scale(.94)}
     .bottom-nav-btn.active{color:var(--primary)}
     .bottom-nav-btn.active .bn-icon{transform:scale(1.12)}
     .bottom-nav-btn:active{background:var(--bg)}
@@ -420,7 +419,7 @@
     .color-palette{display:flex;flex-wrap:wrap;gap:8px}
     .color-swatch{width:40px;height:40px;border-radius:10px;border:3px solid transparent;cursor:pointer;-webkit-tap-highlight-color:transparent}
     .color-swatch.selected{border-color:#111827;box-shadow:0 0 0 2px #fff inset}
-    @media (max-width:700px){.grid.kpis{grid-template-columns:repeat(2,1fr)}.qty-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.title{font-size:21px}.app{padding:12px 12px 120px}.header{margin:0 -12px 12px;padding:12px}}
+    @media (max-width:700px){.grid.kpis{grid-template-columns:repeat(2,1fr)}.qty-grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr}.title{font-size:21px}.app{padding:12px 12px calc(88px + env(safe-area-inset-bottom))}.header{margin:0 -12px 12px;padding:12px}}
     /* ===== スマホ最適化カード ===== */
     .item.mc-card{padding:0;overflow:hidden}
     .mc-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px 10px}
@@ -605,19 +604,18 @@
 </head>
 <body>
 <div class="app">
+  <!-- ヘッダー：履歴/設定は下ナビに一本化したので、ここはタイトル＋状態表示だけ -->
   <div class="header">
     <div class="header-top">
       <div class="header-title-wrap">
-        <h1 class="title" onclick="switchView('freezers')" style="cursor:pointer;margin:0;font-size:20px;font-weight:800">冷凍在庫一元管理</h1>
+        <h1 class="title" onclick="switchView('freezers')" style="cursor:pointer;margin:0;font-size:19px;font-weight:800">冷凍在庫一元管理</h1>
       </div>
       <div class="header-actions">
-        <button class="header-icon-btn" id="headerBtnHistory" onclick="switchView('history')" aria-label="履歴" title="履歴">🕘</button>
-        <button class="header-icon-btn" id="headerBtnSettings" onclick="switchView('settings')" aria-label="設定" title="設定">⚙️</button>
+        <span class="sync-chip off" id="headerSyncChip">⚠ 未同期</span>
       </div>
     </div>
-    <div class="header-sub" style="display:flex;align-items:center;gap:8px;margin-top:4px">
+    <div class="header-sub" style="margin-top:2px">
       <span id="userChip" style="font-size:11px;color:var(--muted)">利用者: 管理者</span>
-      <span class="sync-chip off" id="headerSyncChip">⚠ 未同期</span>
     </div>
   </div>
 
@@ -792,8 +790,7 @@
   </section>
 </div>
 
-<!-- 右下フローティング「新規追加」ボタン -->
-<button class="fab-add" onclick="openItemModal()" aria-label="新規追加" title="新規品目を追加">＋</button>
+<!-- 「新規追加」は下ナビ中央の＋に移動（浮きボタンは中身に被るため廃止） -->
 
 <div class="modal-wrap" id="itemModalWrap"><div class="modal item-modal">
   <h3 id="itemModalTitle">商品を編集</h3>
@@ -937,10 +934,11 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- 下部ナビバー（親指で届く位置に主要4画面） -->
+<!-- 下部ナビバー（親指で届く位置に主要4画面＋中央に「追加」） -->
 <nav class="bottom-nav" id="bottomNav">
   <button class="bottom-nav-btn active" data-tab="freezers" onclick="switchView('freezers')"><span class="bn-icon">🏠</span>屋上</button>
   <button class="bottom-nav-btn" data-tab="store-freezers" onclick="switchView('store-freezers')"><span class="bn-icon">🏪</span>店舗</button>
+  <button class="bottom-nav-btn bn-add" type="button" onclick="openItemModal()" aria-label="商品を追加"><span class="bn-add-circle">＋</span>追加</button>
   <button class="bottom-nav-btn" data-tab="history" onclick="switchView('history')"><span class="bn-icon">🕘</span>履歴</button>
   <button class="bottom-nav-btn" data-tab="settings" onclick="switchView('settings')"><span class="bn-icon">⚙️</span>設定</button>
 </nav>
@@ -3958,12 +3956,6 @@ function switchView(tabId, keepFilter){
 
   // 下部ナビバーの active 状態
   document.querySelectorAll('.bottom-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabId));
-
-  // 履歴/設定のヘッダーアイコンの active 状態
-  const headerHistory=document.getElementById('headerBtnHistory');
-  const headerSettings=document.getElementById('headerBtnSettings');
-  if(headerHistory) headerHistory.classList.toggle('active', tabId==='history');
-  if(headerSettings) headerSettings.classList.toggle('active', tabId==='settings');
 
   // 履歴/設定/不足アラート表示時はセグメントタブとダッシュボードを非表示（zaiko-app風）
   const tabsEl=document.getElementById('mainSegmentTabs');
