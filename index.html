@@ -1648,6 +1648,10 @@ function warnBuffer(minVal){
 }
 function calcStockStatus(total, minVal, maxVal){
   const min = Number(minVal||0), max = Number(maxVal||0);
+  // 在庫0は「不足の目安」が未設定(0)でも必ず不足扱いにする。
+  // でないと 0 < 0 が成り立たず「適正」と判定され、在庫切れなのに
+  // 発注必要/補充必要に出てこない、という現場で危険なズレが起きる。
+  if(total <= 0) return 'low';
   if(total < min) return 'low';
   if(total > max) return 'high';
   if(min > 0 && (total - min) <= warnBuffer(min)) return 'warn';
