@@ -54,6 +54,11 @@
     .share-opt-row .checks{margin:0;flex:1}
     .share-opt-row .checks .check{flex:1 1 auto;text-align:center;font-size:13px}
     .share-select{flex:1;min-width:120px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;background:#fff;font-size:14px;font-weight:700;color:var(--text)}
+    .share-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .share-actions button{margin:0}
+    .share-actions .share-btn-wide{grid-column:1 / -1}
+    .share-img-box{margin-top:6px;max-height:60vh;overflow:auto;border:1px solid var(--line);border-radius:12px;background:#f1f5f9;padding:8px;text-align:center}
+    .share-img-box img{max-width:100%;height:auto;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
     .share-preview{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.6;font-family:inherit;background:#f8fafc;resize:vertical;white-space:pre-wrap}
     .dashboard-hero .hero-stamp{font-size:11px;color:#fff;background:rgba(255,255,255,.12);border-radius:999px;padding:6px 12px;white-space:nowrap}
     .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -960,10 +965,22 @@
     </div>
   </div>
   <textarea id="shareText" class="share-preview" readonly rows="12"></textarea>
-  <div class="modal-actions">
-    <button class="secondary" onclick="closeModal('shareModalWrap')">閉じる</button>
-    <button class="secondary" onclick="copyShareText()">📋 コピー</button>
-    <button class="primary" onclick="shareReport()">📤 共有する</button>
+  <div class="share-actions">
+    <button class="primary share-btn-wide" onclick="shareReport()">📤 文面を共有する（LINEなど）</button>
+    <button class="primary" style="background:#0f766e" onclick="shareReportImage()">🖼 画像で共有</button>
+    <button class="secondary" onclick="copyShareText()">📋 文面をコピー</button>
+    <button class="secondary share-btn-wide" onclick="closeModal('shareModalWrap')">閉じる</button>
+  </div>
+</div></div>
+
+<!-- 画像共有のフォールバック：共有メニューで画像が送れない端末（PC等）向けに、画像を表示して保存してもらう -->
+<div class="modal-wrap" id="shareImageWrap"><div class="modal">
+  <h3>🖼 在庫レポート画像</h3>
+  <div class="mini-note" style="margin-bottom:8px">この端末では画像を直接LINEに渡せませんでした。画像を長押し（PCは右クリック）して保存し、LINEで送ってください。</div>
+  <div class="share-img-box"><img id="shareImagePreview" alt="在庫レポート画像"></div>
+  <div class="share-actions">
+    <button class="primary" id="shareImageDownloadBtn" onclick="downloadShareImage()">⬇ 画像を保存</button>
+    <button class="secondary" onclick="closeModal('shareImageWrap')">閉じる</button>
   </div>
 </div></div>
 
@@ -3551,19 +3568,25 @@ let _shareMode = 'alert';
 //   cat  : 'all'=全カテゴリ / カテゴリ名=そのカテゴリだけ
 let _shareOpts = { group:'freezer', fz:'all', cat:'all' };
 
-// 1商品を1行のテキストに（例: 🔴 炭火焼餃子 3袋（No.1:3））
-function _shareItemLine(item, fzSet, withMark=true){
+// 状態→印・ラベル・並び順（対応が必要なものほど上に来るようにする）
+const SHARE_STATUS = {
+  out :{mark:'⚫', label:'切れ', order:0},
+  low :{mark:'🔴', label:'不足', order:1},
+  warn:{mark:'🟡', label:'注意', order:2},
+  high:{mark:'🟠', label:'過剰', order:3},
+  ok  :{mark:'',   label:'',     order:4}
+};
+function _shareStatusOf(item, fzSet){
   const total = groupStock(item, fzSet);
-  const status = total===0 ? 'out' : groupStatusOf(item, fzSet);
-  const mark = {low:'🔴', warn:'🟡', high:'🟠', out:'⚫', ok:'・'}[status] || '・';
-  const parts = fzSet
-    .filter(f => getFreezerVisibility(item, f.code))
-    .map(f => `${fzNum(f.code)}:${Number(item.freezerStock?.[f.code]||0)}`);
-  const body = `${item.name} ${total}${item.unit}（${parts.join(' / ')}）`;
-  return withMark ? `${mark} ${body}` : body;
+  if(total===0) return 'out';
+  const st = groupStatusOf(item, fzSet);
+  return SHARE_STATUS[st] ? st : 'ok';
+}
+function _shareSortRows(rows){
+  return rows.slice().sort((a,b)=>SHARE_STATUS[a.status].order - SHARE_STATUS[b.status].order);
 }
 
-// 商品リストをカテゴリ順に並べ替えて {カテゴリ名: [商品...]} の順序付き配列で返す
+// 商品リストをカテゴリ順に並べ替えて [[カテゴリ名, [商品...]], ...] で返す
 function _shareSplitByCategory(items){
   const byCat = {};
   items.forEach(i => { const c=(i.category||'その他').trim()||'その他'; (byCat[c]=byCat[c]||[]).push(i); });
@@ -3572,42 +3595,10 @@ function _shareSplitByCategory(items){
   return cats.map(c => [c, byCat[c]]);
 }
 
-// カテゴリ順にまとめて出す（屋上/店舗どちらかのグループ）
-function _shareGroupBlock(title, items, fzSet){
-  const visible = items.filter(i => fzSet.some(f => getFreezerVisibility(i, f.code)));
-  if(!visible.length) return '';
-  const lines = [`━━ ${title} ━━`];
-  _shareSplitByCategory(visible).forEach(([c, list]) => {
-    lines.push(`【${c}】`);
-    list.forEach(i => lines.push(_shareItemLine(i, fzSet)));
-  });
-  return lines.join('\n');
-}
-
-// 冷凍庫1台ぶんをまとめて出す（その冷凍庫に入っている数だけを表示）
-//   例: ━━ 🏠 屋上 No.1 ━━ / 【牛】 / 🔴 牛タン 0袋（屋上計 5袋）
-function _shareFreezerBlock(fz, items){
-  const inThis = items.filter(i => getFreezerVisibility(i, fz.code));
-  if(!inThis.length) return '';
-  const isRoof = ROOF_FREEZERS.some(f=>f.code===fz.code);
-  const groupSet = isRoof ? ROOF_FREEZERS : STORE_FREEZERS;
-  const title = `${isRoof?'🏠 屋上':'🏪 店舗'} ${fzNum(fz.code)}`;
-  const lines = [`━━ ${title} ━━`];
-  _shareSplitByCategory(inThis).forEach(([c, list]) => {
-    lines.push(`【${c}】`);
-    list.forEach(i => {
-      const qty = Number(i.freezerStock?.[fz.code]||0);
-      const groupTotal = groupStock(i, groupSet);
-      // 色分けは屋上/店舗グループとしての判定（不足・過剰は冷凍庫単位ではなくグループ単位で決まる）
-      const status = groupTotal===0 ? 'out' : groupStatusOf(i, groupSet);
-      const mark = {low:'🔴', warn:'🟡', high:'🟠', out:'⚫', ok:'・'}[status] || '・';
-      // 同じグループの他の冷凍庫にも入っていれば「屋上計/店舗計」を添える
-      const others = groupSet.filter(f => f.code!==fz.code && getFreezerVisibility(i, f.code)).length;
-      const tail = others ? `（${isRoof?'屋上計':'店舗計'} ${groupTotal}${i.unit}）` : '';
-      lines.push(`${mark} ${i.name} ${qty}${i.unit}${tail}`);
-    });
-  });
-  return lines.join('\n');
+// 冷凍庫グループ内の内訳（例: No.1:8 / No.3:3）
+function _shareBreakdown(item, fzSet){
+  return fzSet.filter(f => getFreezerVisibility(item, f.code))
+    .map(f => `${fzNum(f.code)}:${Number(item.freezerStock?.[f.code]||0)}`).join(' / ');
 }
 
 // _shareOpts.fz から「対象の冷凍庫の並び」を返す
@@ -3618,7 +3609,7 @@ function _shareTargetFreezers(){
   const one = FREEZERS.find(f=>f.code===v);
   return one ? [one] : FREEZERS;
 }
-// 絞り込み内容を1行で（例: 🧊 冷凍庫No.1 / 📂 牛）
+// 絞り込み内容を1行で（例: 🧊 屋上 No.1 / 📂 牛）
 function _shareFilterLabel(){
   const parts=[];
   const v=_shareOpts.fz;
@@ -3629,37 +3620,15 @@ function _shareFilterLabel(){
   return parts.join(' / ');
 }
 
-// 「チェックした商品」「全商品」の本文を、まとめ方と絞り込みに合わせて組み立てる
-function _shareListBody(items){
-  const targets = _shareTargetFreezers();
-  // カテゴリで絞る
-  let list = items;
-  if(_shareOpts.cat!=='all') list = list.filter(i => ((i.category||'その他').trim()||'その他')===_shareOpts.cat);
-  // 対象の冷凍庫のどれかに入っているものだけ
-  list = list.filter(i => targets.some(f => getFreezerVisibility(i, f.code)));
-
-  let blocks;
-  if(_shareOpts.group==='freezer'){
-    blocks = targets.map(f => _shareFreezerBlock(f, list));
-  }else{
-    const roofSet  = targets.filter(f=>ROOF_FREEZERS.includes(f));
-    const storeSet = targets.filter(f=>STORE_FREEZERS.includes(f));
-    const roofTitle  = roofSet.length===1  ? `🏠 屋上 ${fzNum(roofSet[0].code)}`  : '🏠 屋上';
-    const storeTitle = storeSet.length===1 ? `🏪 店舗 ${fzNum(storeSet[0].code)}` : '🏪 店舗';
-    blocks = [
-      roofSet.length  ? _shareGroupBlock(roofTitle,  list, roofSet)  : '',
-      storeSet.length ? _shareGroupBlock(storeTitle, list, storeSet) : ''
-    ];
-  }
-  return { count:list.length, blocks: blocks.filter(Boolean) };
-}
-
-// mode: 'alert'=不足・切れだけ / 'checked'=今日チェックした商品 / 'all'=全商品
-function buildInventoryReport(mode){
+// ---- レポートの「中身」を組み立てる（文面用と画像用で共通） ----
+//   戻り値: { title, sub, note, sections:[ {title, rows:[{name, qty, status, detail}]} ] }
+//   qty    : '3袋' のような表示用の数
+//   detail : 内訳（No.1:8 / No.3:3）。冷凍庫ごとの表示では空
+function _shareCollect(mode){
   const d = new Date();
   const stamp = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   const who = state.user?.name || '';
-  const head = `📦 冷凍在庫レポート ${stamp}` + (who ? `\n報告: ${who}` : '');
+  const title = `📦 冷凍在庫 ${stamp}` + (who ? `（${who}）` : '');
   const all = buildUnifiedItems(state.items)
     .filter(i => FREEZERS.some(f => getFreezerVisibility(i, f.code)));
 
@@ -3676,33 +3645,221 @@ function buildInventoryReport(mode){
       if(inRoof && inStore && ss==='low') needRefill.push(item);
       if(totalAll===0) outs.push(item);
     });
-    const lines=[head, ''];
-    lines.push(`🔴 発注必要（屋上側の不足）${needOrder.length}件`);
-    needOrder.length ? needOrder.forEach(i=>lines.push('・'+_shareItemLine(i, ROOF_FREEZERS, false))) : lines.push('・なし');
-    lines.push('');
-    lines.push(`🟡 補充必要（店舗側の不足）${needRefill.length}件`);
-    needRefill.length ? needRefill.forEach(i=>lines.push('・'+_shareItemLine(i, STORE_FREEZERS, false))) : lines.push('・なし');
-    lines.push('');
-    lines.push(`⚫ 在庫切れ（合計0）${outs.length}件`);
-    outs.length ? outs.forEach(i=>lines.push(`・${i.name}`)) : lines.push('・なし');
-    return lines.join('\n');
+    return { title, sub:'🔴 要点のみ（不足・切れ）', sections:[
+      { title:`🔴 発注必要（屋上側の不足）${needOrder.length}件`,
+        rows: needOrder.map(i=>({name:i.name, qty:`${groupStock(i,ROOF_FREEZERS)}${i.unit}`, status:'low', detail:_shareBreakdown(i,ROOF_FREEZERS)})) },
+      { title:`🟡 補充必要（店舗側の不足）${needRefill.length}件`,
+        rows: needRefill.map(i=>({name:i.name, qty:`${groupStock(i,STORE_FREEZERS)}${i.unit}`, status:'low', detail:_shareBreakdown(i,STORE_FREEZERS)})) },
+      { title:`⚫ 在庫切れ（合計0）${outs.length}件`,
+        rows: outs.map(i=>({name:i.name, qty:`0${i.unit}`, status:'out', detail:''})) }
+    ]};
   }
 
   const filterLabel = _shareFilterLabel();
-  const legend = '（🔴不足 🟡注意 🟠過剰 ⚫切れ）';
-
+  let base = all, label = '📄 全商品';
   if(mode === 'checked'){
-    const checked = all.filter(i => isConfirmedToday(i));
-    if(!checked.length) return head + '\n\n✅ 今日チェックした商品はまだありません。';
-    const { count, blocks } = _shareListBody(checked);
-    if(!count) return head + '\n\n✅ この条件に当てはまる、今日チェックした商品はありません。' + (filterLabel?`\n${filterLabel}`:'');
-    return [head, `✅ 今日チェックした商品 ${count}件${legend}` + (filterLabel?`\n${filterLabel}`:''), ...blocks].join('\n\n');
+    base = all.filter(i => isConfirmedToday(i));
+    label = '✅ 今日チェックした商品';
+    if(!base.length) return { title, sub:label, note:'今日チェックした商品はまだありません。', sections:[] };
   }
 
-  // all
-  const { count, blocks } = _shareListBody(all);
-  if(!count) return head + '\n\n📄 この条件に当てはまる商品はありません。' + (filterLabel?`\n${filterLabel}`:'');
-  return [head, `📄 全商品 ${count}件${legend}` + (filterLabel?`\n${filterLabel}`:''), ...blocks].join('\n\n');
+  // 絞り込み（カテゴリ／対象の冷凍庫に入っているもの）
+  const targets = _shareTargetFreezers();
+  let list = base;
+  if(_shareOpts.cat!=='all') list = list.filter(i => ((i.category||'その他').trim()||'その他')===_shareOpts.cat);
+  list = list.filter(i => targets.some(f => getFreezerVisibility(i, f.code)));
+  const sub = `${label} ${list.length}件` + (filterLabel ? `　${filterLabel}` : '');
+  if(!list.length) return { title, sub, note:'この条件に当てはまる商品はありません。', sections:[] };
+
+  const sections=[];
+  if(_shareOpts.group==='freezer'){
+    // 冷凍庫1台ずつ。数はその冷凍庫に入っている分だけ。対応が必要なものを上に。
+    targets.forEach(fz=>{
+      const inThis = list.filter(i => getFreezerVisibility(i, fz.code));
+      if(!inThis.length) return;
+      const isRoof = ROOF_FREEZERS.some(f=>f.code===fz.code);
+      const groupSet = isRoof ? ROOF_FREEZERS : STORE_FREEZERS;
+      const rows = inThis.map(i=>({
+        name:i.name,
+        qty:`${Number(i.freezerStock?.[fz.code]||0)}${i.unit}`,
+        // 不足・過剰の判定は冷凍庫1台ではなく屋上/店舗のまとまりで決まる
+        status:_shareStatusOf(i, groupSet),
+        detail:''
+      }));
+      sections.push({ title:`${isRoof?'🏠 屋上':'🏪 店舗'} ${fzNum(fz.code)}`, rows:_shareSortRows(rows) });
+    });
+  }else{
+    // カテゴリごと（屋上→店舗の順）。数はまとまりの合計＋内訳。
+    [['🏠 屋上', targets.filter(f=>ROOF_FREEZERS.includes(f)), ROOF_FREEZERS],
+     ['🏪 店舗', targets.filter(f=>STORE_FREEZERS.includes(f)), STORE_FREEZERS]].forEach(([gname, fzSet, groupSet])=>{
+      if(!fzSet.length) return;
+      const visible = list.filter(i => fzSet.some(f => getFreezerVisibility(i, f.code)));
+      if(!visible.length) return;
+      const gtitle = fzSet.length===1 ? `${gname} ${fzNum(fzSet[0].code)}` : gname;
+      _shareSplitByCategory(visible).forEach(([c, items])=>{
+        const rows = items.map(i=>({ name:i.name, qty:`${groupStock(i,fzSet)}${i.unit}`, status:_shareStatusOf(i,groupSet), detail: fzSet.length>1 ? _shareBreakdown(i,fzSet) : '' }));
+        sections.push({ title:`${gtitle}【${c}】`, rows:_shareSortRows(rows) });
+      });
+    });
+  }
+  return { title, sub, sections };
+}
+
+// ---- 文面（LINE用テキスト）----
+//   🏠 屋上 No.1
+//   🔴 炭火焼餃子 3袋 ←不足
+//   　 牛すじ 3袋
+function buildInventoryReport(mode){
+  const r = _shareCollect(mode);
+  const out = [r.title];
+  if(r.sub) out.push(r.sub);
+  if(r.note){ out.push('', r.note); return out.join('\n'); }
+  r.sections.forEach(sec=>{
+    out.push('', sec.title);
+    if(!sec.rows.length){ out.push('　 なし'); return; }
+    sec.rows.forEach(row=>{
+      const st = SHARE_STATUS[row.status] || SHARE_STATUS.ok;
+      const head = st.mark ? `${st.mark} ` : '　 ';
+      const tail = st.label ? ` ←${st.label}` : '';
+      const det  = row.detail ? `（${row.detail}）` : '';
+      out.push(`${head}${row.name} ${row.qty}${det}${tail}`);
+    });
+  });
+  return out.join('\n');
+}
+
+// ---- 画像（色付きの表）----
+// canvas に描いて PNG にする。スマホの共有メニューで画像としてLINEに渡せる。
+const SHARE_IMG_COLORS = { out:'#e5e7eb', low:'#fee2e2', warn:'#fef9c3', high:'#ffedd5', ok:'#ffffff' };
+const SHARE_IMG_TEXT   = { out:'#374151', low:'#b91c1c', warn:'#a16207', high:'#c2410c', ok:'#1f2937' };
+function buildInventoryImage(mode){
+  const r = _shareCollect(mode);
+  const S = 2;                 // 高解像度（Retina）向けに2倍で描く
+  const W = 720, PAD = 24, ROW = 46, HEAD = 44, GAP = 14;
+  const font = (w,px)=>`${w} ${px*S}px -apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans","Noto Sans JP",Arial,sans-serif`;
+
+  // 高さを先に計算
+  let h = PAD + 40 + (r.sub ? 30 : 0) + 12;
+  if(r.note) h += 40;
+  r.sections.forEach(sec=>{ h += GAP + HEAD + Math.max(1, sec.rows.length) * ROW; });
+  h += PAD + 28;
+
+  const cv = document.createElement('canvas');
+  cv.width = W*S; cv.height = h*S;
+  const ctx = cv.getContext('2d');
+  ctx.scale(S, S);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,W,h);
+  ctx.textBaseline = 'middle';
+
+  // 長い商品名は「…」で切る
+  const fit = (text, maxW)=>{
+    if(ctx.measureText(text).width <= maxW) return text;
+    let t = text;
+    while(t.length>1 && ctx.measureText(t+'…').width > maxW) t = t.slice(0,-1);
+    return t+'…';
+  };
+
+  let y = PAD;
+  ctx.fillStyle = '#1f2937'; ctx.font = font('800', 22);
+  ctx.fillText(r.title, PAD, y+14); y += 40;
+  if(r.sub){ ctx.fillStyle='#6b7280'; ctx.font=font('700',15); ctx.fillText(r.sub, PAD, y+10); y += 30; }
+  y += 12;
+  if(r.note){ ctx.fillStyle='#374151'; ctx.font=font('600',16); ctx.fillText(r.note, PAD, y+16); y += 40; }
+
+  const colStatus = PAD, colName = PAD+72, colQty = W-PAD;
+  r.sections.forEach(sec=>{
+    y += GAP;
+    // 見出し（濃い帯）
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath(); ctx.roundRect(PAD, y, W-PAD*2, HEAD, 8); ctx.fill();
+    ctx.fillStyle = '#ffffff'; ctx.font = font('800', 17);
+    ctx.fillText(sec.title, PAD+12, y+HEAD/2);
+    y += HEAD;
+    if(!sec.rows.length){
+      ctx.fillStyle='#f8fafc'; ctx.fillRect(PAD, y, W-PAD*2, ROW);
+      ctx.fillStyle='#9ca3af'; ctx.font=font('600',15); ctx.fillText('なし', colName, y+ROW/2);
+      y += ROW; return;
+    }
+    sec.rows.forEach((row, idx)=>{
+      const st = row.status;
+      ctx.fillStyle = SHARE_IMG_COLORS[st] || '#fff';
+      if(st==='ok' && idx%2===1) ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(PAD, y, W-PAD*2, ROW);
+      ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(PAD, y+ROW); ctx.lineTo(W-PAD, y+ROW); ctx.stroke();
+      // 状態ラベル（不足／切れ など）
+      const lab = SHARE_STATUS[st]?.label || '';
+      if(lab){
+        ctx.fillStyle = SHARE_IMG_TEXT[st]; ctx.font = font('800',13);
+        ctx.beginPath(); ctx.roundRect(colStatus+4, y+10, 58, ROW-20, 6); ctx.strokeStyle = SHARE_IMG_TEXT[st]; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.textAlign='center'; ctx.fillText(lab, colStatus+4+29, y+ROW/2+1); ctx.textAlign='left';
+      }
+      // 数（右寄せ）
+      ctx.fillStyle = SHARE_IMG_TEXT[st] || '#1f2937'; ctx.font = font('800',18);
+      ctx.textAlign='right'; ctx.fillText(row.qty, colQty-10, y+ROW/2); ctx.textAlign='left';
+      const qtyW = ctx.measureText(row.qty).width + 24;
+      // 商品名＋内訳
+      ctx.fillStyle = SHARE_IMG_TEXT[st] || '#1f2937'; ctx.font = font(st==='ok'?'600':'800',17);
+      const nameMaxW = (colQty - qtyW) - colName - (row.detail ? 150 : 0);
+      const name = fit(row.name, nameMaxW);
+      ctx.fillText(name, colName, y+ROW/2);
+      if(row.detail){
+        const nw = ctx.measureText(name).width;
+        ctx.fillStyle='#6b7280'; ctx.font=font('600',13);
+        ctx.fillText(fit(`（${row.detail}）`, (colQty-qtyW)-(colName+nw+8)), colName+nw+8, y+ROW/2);
+      }
+      y += ROW;
+    });
+  });
+  // フッター
+  ctx.fillStyle='#9ca3af'; ctx.font=font('600',12);
+  ctx.fillText('冷凍在庫一元管理アプリ', PAD, h-PAD+4);
+  return cv;
+}
+
+let _shareImageBlobUrl = null;
+async function shareReportImage(){
+  let blob;
+  try{
+    const cv = buildInventoryImage(_shareMode);
+    blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    if(!blob) throw new Error('画像を作れませんでした');
+  }catch(e){
+    console.error(e);
+    alert('画像の作成に失敗しました：' + (e.message||e));
+    return;
+  }
+  const fname = `冷凍在庫_${new Date().toISOString().slice(0,10)}.png`;
+  // 画像ごと共有できる端末（iPhone/Android）なら共有メニューへ
+  try{
+    if(navigator.canShare && typeof File==='function'){
+      const file = new File([blob], fname, {type:'image/png'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({ files:[file], title:'冷凍在庫レポート' });
+        toast('📤 画像を共有しました');
+        return;
+      }
+    }
+  }catch(e){
+    if(e && e.name==='AbortError') return; // ユーザーがキャンセル
+    console.warn('image share failed, fallback:', e);
+  }
+  // 共有できない端末（PCなど）→ 画像を表示して保存してもらう
+  if(_shareImageBlobUrl) URL.revokeObjectURL(_shareImageBlobUrl);
+  _shareImageBlobUrl = URL.createObjectURL(blob);
+  const img = document.getElementById('shareImagePreview');
+  if(img) img.src = _shareImageBlobUrl;
+  const dl = document.getElementById('shareImageDownloadBtn');
+  if(dl) dl.dataset.fname = fname;
+  openModal('shareImageWrap');
+}
+function downloadShareImage(){
+  if(!_shareImageBlobUrl) return;
+  const a = document.createElement('a');
+  a.href = _shareImageBlobUrl;
+  a.download = document.getElementById('shareImageDownloadBtn')?.dataset.fname || '冷凍在庫.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  toast('⬇ 画像を保存しました');
 }
 
 // 冷凍庫・カテゴリの選択肢を作る（カテゴリは設定で増減するので開くたびに作り直す）
