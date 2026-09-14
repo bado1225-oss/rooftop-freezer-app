@@ -43,6 +43,11 @@
     .dashboard-hero{background:linear-gradient(135deg,#203a5a,#2c4a73);color:#fff;border-radius:18px;padding:18px 16px;margin:0 0 14px;box-shadow:var(--shadow)}
     .dashboard-hero .hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}
     .dashboard-hero .hero-title{font-size:16px;font-weight:800;letter-spacing:.02em}
+    .hero-share-btn{margin-top:12px;width:100%;border:1px solid rgba(255,255,255,.35);border-radius:12px;background:rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:800;padding:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+    .hero-share-btn:active{background:rgba(255,255,255,.26)}
+    .share-modes{margin-bottom:10px}
+    .share-modes .check{flex:1 1 auto;text-align:center;font-size:13px}
+    .share-preview{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.6;font-family:inherit;background:#f8fafc;resize:vertical;white-space:pre-wrap}
     .dashboard-hero .hero-stamp{font-size:11px;color:#fff;background:rgba(255,255,255,.12);border-radius:999px;padding:6px 12px;white-space:nowrap}
     .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
     @media (max-width:540px){ .kpi-grid{grid-template-columns:repeat(2,1fr)} }
@@ -626,6 +631,8 @@
       <div class="hero-stamp" id="heroStamp">更新中</div>
     </div>
     <div class="kpi-grid" id="dashboardKpis"></div>
+    <!-- 在庫状況をLINE等に共有（スマホの共有メニュー／コピー） -->
+    <button class="hero-share-btn" type="button" onclick="openShareModal()">📤 在庫状況を共有（LINEなど）</button>
   </div>
 
   <!-- メインのセグメントタブ（屋上／店舗） -->
@@ -918,6 +925,23 @@
 <!-- ※ 旧Supabase接続設定モーダルは Firebase 移行に伴い削除 -->
 
 <!-- カテゴリ編集モーダル（追加 / 名前変更 / 色・アイコン） -->
+<!-- 在庫状況の共有モーダル：文面を選んでプレビュー → 共有 or コピー -->
+<div class="modal-wrap" id="shareModalWrap"><div class="modal">
+  <h3>📤 在庫状況を共有</h3>
+  <div class="mini-note" style="margin-bottom:10px">送る内容を選んでください。下に文面が出ます。「共有する」でLINEなどに送れます。</div>
+  <div class="checks share-modes" id="shareModes">
+    <button type="button" class="check active" data-mode="alert" onclick="setShareMode('alert')">🔴 要点のみ（不足・切れ）</button>
+    <button type="button" class="check" data-mode="checked" onclick="setShareMode('checked')">✅ 今日チェックした商品</button>
+    <button type="button" class="check" data-mode="all" onclick="setShareMode('all')">📄 全商品</button>
+  </div>
+  <textarea id="shareText" class="share-preview" readonly rows="12"></textarea>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('shareModalWrap')">閉じる</button>
+    <button class="secondary" onclick="copyShareText()">📋 コピー</button>
+    <button class="primary" onclick="shareReport()">📤 共有する</button>
+  </div>
+</div></div>
+
 <div class="modal-wrap" id="categoryModalWrap"><div class="modal">
   <h3 id="categoryModalTitle">カテゴリを追加</h3>
   <input type="hidden" id="categoryEditOriginalName">
@@ -3490,6 +3514,128 @@ function removeItemFromFreezer(itemId, freezerCode){
       });
   }
   toast('✓ この冷凍庫から外しました');
+}
+
+/* ==== 在庫状況の共有（LINE等） ==== */
+// スマホの共有メニュー(navigator.share)に文面を渡す。LINEはそこから選べる。
+// 共有メニューが無い環境（PC等）はクリップボードにコピーして貼り付けてもらう。
+let _shareMode = 'alert';
+
+// 1商品を1行のテキストに（例: 🔴 炭火焼餃子 3袋（No.1:3））
+function _shareItemLine(item, fzSet, withMark=true){
+  const total = groupStock(item, fzSet);
+  const status = total===0 ? 'out' : groupStatusOf(item, fzSet);
+  const mark = {low:'🔴', warn:'🟡', high:'🟠', out:'⚫', ok:'・'}[status] || '・';
+  const parts = fzSet
+    .filter(f => getFreezerVisibility(item, f.code))
+    .map(f => `${fzNum(f.code)}:${Number(item.freezerStock?.[f.code]||0)}`);
+  const body = `${item.name} ${total}${item.unit}（${parts.join(' / ')}）`;
+  return withMark ? `${mark} ${body}` : body;
+}
+
+// カテゴリ順にまとめて出す（屋上/店舗どちらかのグループ）
+function _shareGroupBlock(title, items, fzSet){
+  const visible = items.filter(i => fzSet.some(f => getFreezerVisibility(i, f.code)));
+  if(!visible.length) return '';
+  const byCat = {};
+  visible.forEach(i => { const c=(i.category||'その他').trim()||'その他'; (byCat[c]=byCat[c]||[]).push(i); });
+  const order = categoryNames();
+  const cats = order.filter(c=>byCat[c]).concat(Object.keys(byCat).filter(c=>!order.includes(c)));
+  const lines = [`━━ ${title} ━━`];
+  cats.forEach(c => {
+    lines.push(`【${c}】`);
+    byCat[c].forEach(i => lines.push(_shareItemLine(i, fzSet)));
+  });
+  return lines.join('\n');
+}
+
+// mode: 'alert'=不足・切れだけ / 'checked'=今日チェックした商品 / 'all'=全商品
+function buildInventoryReport(mode){
+  const d = new Date();
+  const stamp = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  const who = state.user?.name || '';
+  const head = `📦 冷凍在庫レポート ${stamp}` + (who ? `\n報告: ${who}` : '');
+  const all = buildUnifiedItems(state.items)
+    .filter(i => FREEZERS.some(f => getFreezerVisibility(i, f.code)));
+
+  if(mode === 'alert'){
+    // ダッシュボードと同じ判定：発注必要=屋上不足、補充必要=店舗不足(屋上にも登録あり)、在庫切れ=合計0
+    const needOrder=[], needRefill=[], outs=[];
+    all.forEach(item=>{
+      const inRoof  = ROOF_FREEZERS.some(f=>getFreezerVisibility(item,f.code));
+      const inStore = STORE_FREEZERS.some(f=>getFreezerVisibility(item,f.code));
+      const rs = inRoof  ? groupStatusOf(item, ROOF_FREEZERS)  : 'ok';
+      const ss = inStore ? groupStatusOf(item, STORE_FREEZERS) : 'ok';
+      const totalAll = FREEZERS.filter(f=>getFreezerVisibility(item,f.code)).reduce((s,f)=>s+Number(item.freezerStock?.[f.code]||0),0);
+      if(rs==='low') needOrder.push(item);
+      if(inRoof && inStore && ss==='low') needRefill.push(item);
+      if(totalAll===0) outs.push(item);
+    });
+    const lines=[head, ''];
+    lines.push(`🔴 発注必要（屋上側の不足）${needOrder.length}件`);
+    needOrder.length ? needOrder.forEach(i=>lines.push('・'+_shareItemLine(i, ROOF_FREEZERS, false))) : lines.push('・なし');
+    lines.push('');
+    lines.push(`🟡 補充必要（店舗側の不足）${needRefill.length}件`);
+    needRefill.length ? needRefill.forEach(i=>lines.push('・'+_shareItemLine(i, STORE_FREEZERS, false))) : lines.push('・なし');
+    lines.push('');
+    lines.push(`⚫ 在庫切れ（合計0）${outs.length}件`);
+    outs.length ? outs.forEach(i=>lines.push(`・${i.name}`)) : lines.push('・なし');
+    return lines.join('\n');
+  }
+
+  if(mode === 'checked'){
+    const checked = all.filter(i => isConfirmedToday(i));
+    if(!checked.length) return head + '\n\n✅ 今日チェックした商品はまだありません。';
+    const blocks = [head, `✅ 今日チェックした商品 ${checked.length}件`, '',
+      _shareGroupBlock('🏠 屋上', checked, ROOF_FREEZERS),
+      _shareGroupBlock('🏪 店舗', checked, STORE_FREEZERS)].filter(Boolean);
+    return blocks.join('\n\n');
+  }
+
+  // all
+  const blocks = [head, `📄 全商品 ${all.length}件（🔴不足 🟡注意 🟠過剰 ⚫切れ）`, '',
+    _shareGroupBlock('🏠 屋上', all, ROOF_FREEZERS),
+    _shareGroupBlock('🏪 店舗', all, STORE_FREEZERS)].filter(Boolean);
+  return blocks.join('\n\n');
+}
+
+function openShareModal(){
+  setShareMode(_shareMode || 'alert');
+  openModal('shareModalWrap');
+}
+function setShareMode(mode){
+  _shareMode = mode;
+  document.querySelectorAll('#shareModes .check').forEach(b=>b.classList.toggle('active', b.dataset.mode===mode));
+  const ta=document.getElementById('shareText');
+  if(ta) ta.value = buildInventoryReport(mode);
+}
+async function copyShareText(){
+  const ta=document.getElementById('shareText'); if(!ta) return;
+  const text=ta.value;
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('📋 コピーしました。LINEに貼り付けてください');
+  }catch(e){
+    // 古いブラウザ向けの保険
+    try{ ta.removeAttribute('readonly'); ta.select(); document.execCommand('copy'); ta.setAttribute('readonly',''); toast('📋 コピーしました'); }
+    catch(e2){ alert('コピーできませんでした。文面を長押しして手動でコピーしてください。'); }
+  }
+}
+async function shareReport(){
+  const ta=document.getElementById('shareText'); if(!ta) return;
+  const text=ta.value;
+  if(navigator.share){
+    try{
+      await navigator.share({ title:'冷凍在庫レポート', text });
+      toast('📤 共有しました');
+      return;
+    }catch(e){
+      if(e && e.name==='AbortError') return; // ユーザーがキャンセル
+      console.warn('share failed, fallback to copy:', e);
+    }
+  }
+  // 共有メニューが無い（PCなど）→ コピーに切り替え
+  await copyShareText();
 }
 
 /* ==== Quick Sheet（クイック入庫・補充ボトムシート） ==== */
