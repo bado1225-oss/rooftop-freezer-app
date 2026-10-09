@@ -2996,12 +2996,54 @@ function shopRefs(){
 // ---- 個別の書き込み（呼び出し箇所は既存のまま動く） ----
 async function cloudUpsertItem(item){
   if(!isCloudReady()) return;
-  const { db, doc, setDoc } = window.__fb;
-  await setDoc(
-    doc(db, 'shops', SHOP_ID, 'items', item.id),
-    cloudItemRow(item),
-    { merge: true }
-  );
+  const { db, doc, setDoc, writeBatch, serverTimestamp } = window.__fb;
+  const ref = doc(db, 'shops', SHOP_ID, 'items', item.id);
+  // クラウドに同名の重複ドキュメントが残っていると、受信時の統合(MAX)で
+  // 古い方の大きい在庫数が勝ち「減らしても戻る」。重複側にも同じ在庫を
+  // 同時に書いて食い違いを無くす（usageCount 等の合算系は触らない）。
+  const dupIds = (_cloudDupIdsByName.get(itemNameKey(item)) || []).filter(id => id !== item.id);
+  if(!dupIds.length){
+    await setDoc(ref, cloudItemRow(item), { merge: true });
+    return;
+  }
+  const batch = writeBatch(db);
+  batch.set(ref, cloudItemRow(item), { merge: true });
+  const stockOnly = {
+    freezerStock: Object.fromEntries(FREEZERS.map(f => [f.code, Number(item.freezerStock?.[f.code]||0)])),
+    visibleInFreezers: item.visibleInFreezers || Object.fromEntries(FREEZERS.map(f=>[f.code,false])),
+    updatedAt: serverTimestamp()
+  };
+  dupIds.forEach(id => batch.set(doc(db, 'shops', SHOP_ID, 'items', id), stockOnly, { merge: true }));
+  await batch.commit();
+}
+// クラウド上の同名重複ドキュメント: 商品名キー → そのドキュメントID一覧（2件以上の時だけ）
+let _cloudDupIdsByName = new Map();
+let _cloudDupCleanupRunning = false;
+function itemNameKey(item){ return String(item?.name || '').trim().toLowerCase(); }
+// オーナーのみ: 統合済みの内容を残す1件に書き、重複ドキュメントを削除する
+// （スタッフはルール上削除できないので、上の同時書き込みで整合を保つ）
+async function cloudCleanupDuplicateItems(){
+  if(!isCloudReady() || !isOwnerUser() || _cloudDupCleanupRunning || !_cloudDupIdsByName.size) return;
+  _cloudDupCleanupRunning = true;
+  try{
+    const { db, doc, writeBatch } = window.__fb;
+    const batch = writeBatch(db);
+    let n = 0;
+    _cloudDupIdsByName.forEach((ids, key) => {
+      const keep = state.items.find(it => itemNameKey(it) === key);
+      if(!keep || !ids.includes(keep.id)) return;
+      batch.set(doc(db, 'shops', SHOP_ID, 'items', keep.id), cloudItemRow(keep), { merge: true });
+      ids.filter(id => id !== keep.id).forEach(id => { batch.delete(doc(db, 'shops', SHOP_ID, 'items', id)); n++; });
+    });
+    if(n){
+      await batch.commit();
+      console.log('☁ 重複商品ドキュメントを削除: '+n+'件');
+    }
+  }catch(err){
+    console.error('重複商品の整理に失敗:', err);
+  }finally{
+    _cloudDupCleanupRunning = false;
+  }
 }
 // Firestore では freezerStock は item ドキュメントに埋め込み済み。
 // 既存呼び出し互換のため no-op として残す。
@@ -3120,10 +3162,18 @@ function startFirestoreSync(){
         confirmedAt: prev.confirmedAt || null
       };
     });
+    // 同名の重複ドキュメントを記録（normalizeState で1件に統合される前に）
+    const idsByName = new Map();
+    state.items.forEach(it => {
+      const key = itemNameKey(it);
+      if(key) (idsByName.get(key) || idsByName.set(key, []).get(key)).push(it.id);
+    });
+    _cloudDupIdsByName = new Map([...idsByName].filter(([, ids]) => ids.length > 1));
     state = normalizeState(state);
     saveState();
     rerenderAllViews();
     updateSyncStatus('接続中: '+(currentAuthUser.email||'logged-in'), true);
+    cloudCleanupDuplicateItems();
     // 一度きり: 旧『肉類』『加工食品』のうち牛/豚/鶏に分類できるものを自動移行
     try { migrateMeatCategoriesIfNeeded(); } catch(e) { console.warn('meat migrate skipped:', e); }
     // 一度きり: 7カテゴリ（牛/豚/鶏/その他の肉/魚介/惣菜・加工/餃子・点心）へ再編
